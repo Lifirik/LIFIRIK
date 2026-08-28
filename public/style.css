@@ -1,0 +1,4123 @@
+/* LIFIRIK — all styling. Design tokens as CSS custom properties (§10.1).
+ NOTE: the violet accent is historically stored in --teal — do not "fix" the name. */
+
+:root {
+ --teal: #6558e6; /* violet accent (historic name) */
+ --teal-soft: rgba(101, 88, 230, 0.12);
+ --ink: #232a35;
+ --ink-soft: #5a6474;
+ --sky-top: #ccd7f6;
+ --sky-bot: #fdebd8;
+ --paper: #ffffff;
+ --paper-dim: #f4f6fb;
+ --line: #dfe4ef;
+ --danger: #e05555;
+ --gold: #d4a017;
+ --radius: 10px;
+ --shadow: 0 6px 24px rgba(35, 42, 53, 0.12);
+ --font: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+ /* ---------- THE HUD PLATE (2026-08-23) ----------
+ Eleven surfaces float over the level — the toolbar, the tool fan, the
+ menus dot, the scrub row, the align chip, the info chip, the win banner,
+ the challenge HUD, the build note, the info bar and the nav knob — and
+ each had re-invented the same white slab: six different alphas between
+ them (.82 .85 .9 .92 .94 .95 .97), and nothing that could be changed in
+ one place. One token now, and the two things that were missing.
+
+ The EDGE was the bigger problem. `--line: #dfe4ef` against a white plate
+ measures 1.22:1, so every panel needed its shadow just to have a boundary
+ at all — and a shadow is not an edge when the thing behind it is a level
+ of arbitrary colour. `--plate-edge` is the same family at 3:1, which is
+ the floor for a control boundary. */
+ --plate: rgba(255, 255, 255, 0.92);
+ --plate-solid: #ffffff;
+ --plate-2: #f0f3f9;
+ --plate-edge: rgba(35, 42, 53, 0.34);
+ --plate-ink: #232a35;
+ --plate-ink-soft: #5a6474;
+ --focus: #5342d6;
+ /* The floor under HUD type. Three readouts land under 8 px once --bar-scale
+ multiplies them — .dock-unit at 7.6, .tool-key and .bar-key at 7.2 —
+ uppercase and letterspaced, on a translucent plate over an arbitrary
+ canvas colour. Nothing in the HUD may go below this. */
+ --hud-type-min: 9.5px;
+}
+
+/* ---------- the HUD in the dark ----------
+ The HUD assumed a pale sky. On a night, space or lava level it painted a
+ white smear across the top of the world and stood five more white slabs on
+ it. The plate follows the viewer's own preference, and `data-hud` on #app
+ overrides it in either direction so a setting can drive it later.
+
+ Deliberately NOT sampled from the canvas: the mean luminance of the level
+ is the wrong statistic (the HUD occupies a top strip and a bottom strip,
+ not the middle) at the wrong cadence (it would change while you play). A
+ preference is a preference. */
+@media (prefers-color-scheme: dark) {
+ #app:not([data-hud="light"]) {
+ --plate: rgba(20, 25, 35, 0.90);
+ --plate-solid: #171d29;
+ --plate-2: #212938;
+ --plate-edge: rgba(255, 255, 255, 0.30);
+ --plate-ink: #eaeef6;
+ --plate-ink-soft: #a7b1c4;
+ --focus: #a396ff;
+ }
+}
+#app[data-hud="dark"] {
+ --plate: rgba(20, 25, 35, 0.90);
+ --plate-solid: #171d29;
+ --plate-2: #212938;
+ --plate-edge: rgba(255, 255, 255, 0.30);
+ --plate-ink: #eaeef6;
+ --plate-ink-soft: #a7b1c4;
+ --focus: #a396ff;
+}
+
+/* ---------- one focus rule ----------
+ `:focus-visible` appeared once in 3,375 lines, on `.vis-track`. Every HUD
+ control — twelve tools, eleven align ops, the dock buttons, every
+ context-menu cell — was keyboard reachable and showed only the UA default
+ ring, which on a translucent plate over an arbitrary sky is a thin dark
+ line against whatever happens to be behind it.
+
+ Two rings: an inner one in the plate's own colour and an outer in the
+ accent. The pair is what makes it survive an arbitrary canvas — the inner
+ ring guarantees contrast against the plate, the outer against the world. */
+.hud :focus-visible,
+.toolbar-wrap :focus-visible,
+.ctx-menu :focus-visible,
+.tool-fan :focus-visible,
+.dock :focus-visible {
+ outline: none;
+ box-shadow: 0 0 0 2px var(--plate-solid), 0 0 0 4px var(--focus);
+ border-radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+ margin: 0;
+ padding: 0;
+ height: 100%;
+ font-family: var(--font);
+ color: var(--ink);
+ background: linear-gradient(var(--sky-top), var(--sky-bot)) fixed;
+}
+
+#app { min-height: 100%; display: flex; flex-direction: column; }
+
+/* ---------- splash ---------- */
+
+.splash {
+ flex: 1;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: 14px;
+ min-height: 100vh;
+}
+.splash-mark svg { filter: drop-shadow(0 4px 10px rgba(35,42,53,.18)); }
+
+/* ---------- nav ---------- */
+
+.nav {
+ display: flex;
+ align-items: center;
+ gap: 18px;
+ padding: 10px 22px;
+ background: rgba(255, 255, 255, 0.82);
+ backdrop-filter: blur(8px);
+ border-bottom: 1px solid var(--line);
+ position: sticky;
+ top: 0;
+ z-index: 40;
+}
+.brand { display: flex; align-items: center; text-decoration: none; }
+.nav-link {
+ color: var(--ink);
+ text-decoration: none;
+ font-weight: 600;
+ font-size: 14px;
+ padding: 6px 10px;
+ border-radius: 8px;
+}
+.nav-link:hover { background: var(--teal-soft); color: var(--teal); }
+.nav-link.points { color: var(--gold); }
+.nav-user { display: flex; align-items: center; gap: 8px; }
+.spacer { flex: 1; }
+/* A phone-width nav (§19): the row was 541 px of links that neither wrapped
+ nor scrolled, so every page dragged 166 px of dead space to the right.
+ Tighter gaps first, then wrap — the account buttons take the second line.
+ Scrolling was the other option and loses: a nav you cannot see the end of
+ is a nav that hides Sign in. */
+@media (max-width: 560px) {
+ .nav { flex-wrap: wrap; gap: 4px 8px; padding: 8px 12px; }
+ .nav-link { padding: 6px 7px; font-size: 13px; }
+}
+
+.main { flex: 1; width: min(1100px, 100% - 40px); margin: 0 auto; padding: 24px 0 60px; }
+.main.full { width: 100%; margin: 0; padding: 0; display: flex; }
+/* **The admin page gets the whole monitor, and that is a bug fix.** The users
+ grid is twelve columns whose minimums add up to 1150 px, inside a shell fixed
+ at 1100 — so it scrolled sideways *by construction*, on any screen, and a
+ wider monitor could not help because the container never grew. 1100 is right
+ for prose and for cards; a management table is the one page that genuinely
+ wants the width it can get. */
+.main.wide { width: min(2000px, 100% - 40px); }
+
+/* ---------- buttons & inputs ---------- */
+
+.btn {
+ font: inherit;
+ font-weight: 600;
+ font-size: 14px;
+ color: var(--ink);
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: 8px;
+ padding: 8px 14px;
+ cursor: pointer;
+ text-decoration: none;
+ display: inline-flex;
+ align-items: center;
+ gap: 6px;
+ transition: transform 0.06s ease, box-shadow 0.12s ease;
+}
+.btn:hover { box-shadow: 0 2px 10px rgba(35,42,53,.12); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primary:hover { background: #5748d9; }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover { background: var(--teal-soft); }
+.btn.danger { color: var(--danger); }
+.btn.tiny { font-size: 12px; padding: 4px 9px; border-radius: 7px; }
+.btn.big { font-size: 16px; padding: 12px 22px; border-radius: 12px; }
+.btn.active { outline: 2px solid var(--teal); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.input {
+ font: inherit;
+ font-size: 14px;
+ padding: 8px 12px;
+ border: 1px solid var(--line);
+ border-radius: 8px;
+ background: var(--paper);
+ color: var(--ink);
+ width: 100%;
+}
+.input:focus { outline: 2px solid var(--teal); border-color: transparent; }
+select.input { width: auto; }
+/* A select sizes itself to its widest OPTION. Inside a fixed-width modal that
+ pushes the whole dialog sideways — the save destinations are full sentences,
+ and the note under the field repeats the chosen one anyway. */
+.field select.input { width: 100%; min-width: 0; }
+.field { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+.field .input { margin-top: 4px; font-weight: 400; }
+/* the "which of these two boxes is which" note, on the label itself rather than
+ under the field — it has to be read BEFORE the box is filled in */
+.field-note { font-weight: 400; color: var(--ink-soft); font-size: 12px; }
+.check { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 14px; }
+.form-error { color: var(--danger); font-size: 13px; min-height: 18px; margin: 6px 0 0; }
+.muted { color: var(--ink-soft); font-size: 13px; }
+
+/* ---------- home ---------- */
+
+.hero { text-align: center; padding: 60px 20px 30px; }
+.hero-mark { display: flex; justify-content: center; margin-bottom: 18px; }
+.hero-tag { font-size: 17px; font-weight: 600; color: var(--ink); max-width: 620px; margin: 0 auto; }
+.hero-sub { color: var(--ink-soft); max-width: 560px; margin: 10px auto 26px; }
+.hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.page-title {
+ margin: 8px 0 20px;
+ display: flex;
+ align-items: baseline;
+ gap: 12px 16px;
+ flex-wrap: wrap;
+}
+.page-byline {
+ font-size: 14px;
+ font-weight: 400;
+ color: var(--ink-soft);
+}
+.section-title { margin: 34px 0 14px; font-size: 20px; }
+
+/* ---------- cards ---------- */
+
+.cards-grid, .cards-row {
+ display: grid;
+ grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+ gap: 16px;
+}
+.card {
+ position: relative;
+ display: block;
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: var(--radius);
+ overflow: hidden;
+ text-decoration: none;
+ color: var(--ink);
+ transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.card-thumb { width: 100%; height: auto; display: block; background: linear-gradient(var(--sky-top), var(--sky-bot)); }
+.card-body { padding: 10px 12px 12px; }
+.card-title { font-weight: 700; font-size: 14px; }
+.card-sub { margin-top: 3px; }
+/* The author's own line about the level, two lines of it. Clamped rather than
+ truncated in JS so the whole string is still in the DOM — the details panel,
+ search and a screen reader all still get it — and so a card with no
+ description costs no height at all. */
+.card-desc {
+ margin: 5px 0 0;
+ font-size: 12px; line-height: 1.35;
+ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+ overflow: hidden;
+}
+.card-badges { display: flex; flex-wrap: nowrap; margin-top: 5px; font-size: 13px; }
+.card-done {
+ position: absolute;
+ top: 8px; right: 8px;
+ font-size: 20px;
+ filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
+/* account-gated challenge: visible, dimmed, padlocked — the card sells the
+ sign-up, the server refuses the data either way */
+.card-lock {
+ position: absolute;
+ top: 8px; right: 8px;
+ font-size: 20px;
+ filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
+.card.locked .card-thumb { filter: saturate(0.45) brightness(0.82); }
+.card.locked:hover .card-thumb { filter: saturate(0.7) brightness(0.9); }
+.card-edit-btn {
+ position: absolute;
+ top: 8px; left: 8px;
+ width: 26px; height: 26px;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 13px;
+ background: rgba(255,255,255,.9);
+ border: 1px solid var(--line);
+ border-radius: 50%;
+ cursor: pointer;
+}
+.card-edit-btn:hover { background: #fff; }
+/* the curator's star — same corner treatment as the edit pencil, opposite side
+ of it so both can sit on one card */
+.card-feature-btn {
+ position: absolute;
+ top: 8px; left: 40px;
+ width: 26px; height: 26px;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 14px; line-height: 1;
+ border: 1px solid var(--line);
+ border-radius: 50%;
+ background: rgba(255,255,255,.85);
+ cursor: pointer;
+ padding: 0;
+}
+.card-feature-btn:hover { background: #fff; }
+.card-feature-btn.on { color: var(--gold); border-color: var(--gold); background: #fff; }
+.featured-row { margin-bottom: 26px; }
+.featured-row.hidden { display: none; }
+.featured-row .section-title { margin-top: 0; color: var(--gold); }
+.featured-row > .muted { margin: -8px 0 12px; }
+.chip-official { color: var(--gold); font-weight: 800; }
+
+/* ---------- challenges (§11.8) ---------- */
+
+.challenge-row { margin-bottom: 26px; }
+.challenge-row.hidden { display: none; }
+.challenge-row .section-title { margin-top: 0; color: var(--teal); }
+.challenge-row > .muted { margin: -8px 0 12px; }
+/* a sealed race is a card you can look at but not open — the cursor says so
+ before the click does */
+.card.sealed { cursor: default; }
+.card.sealed .card-thumb { filter: saturate(0.4); }
+.chal-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.chal-chip {
+ font-size: 11px;
+ padding: 2px 7px;
+ border-radius: 999px;
+ background: var(--teal-soft);
+ color: var(--ink);
+ white-space: nowrap;
+}
+.chal-chip.race { background: color-mix(in srgb, var(--gold) 24%, var(--paper)); }
+/* One challenge per `.chal-one`, and the whole row is the hover target — the
+ chip alone is a 20 px pill, and "I had to point at the little challenge bar"
+ was the first thing said about it. Padded so there is something to hit
+ beside the chip, not just on it. */
+.chal-one { padding: 2px 0; cursor: help; }
+.chal-one + .chal-one { margin-top: 2px; }
+/* The challenge MESSAGE (§11.8) — the challenger's own line, under its chip.
+
+ **Reversed out on ink, in a bubble with a tail**, on request: everything
+ around it is grey-on-white detail the game is reporting, and this is the one
+ line a PERSON wrote. It borrows the tooltip's exact inversion (--ink at #fff,
+ 8px radius) so the message and the popup it belongs to read as one voice. */
+.chal-message {
+ position: relative;
+ margin: 7px 0 2px;
+ padding: 5px 9px;
+ border-radius: 8px;
+ background: var(--ink);
+ color: #fff;
+ /* a point up on the 12px detail text around it — asked for, and it is the
+ line most worth reading on the card */
+ font-size: 13px; line-height: 1.35;
+ font-style: italic;
+ overflow-wrap: anywhere;
+}
+/* the tail, pointing up at the chip it came from — a rotated square rather than
+ a border triangle so it inherits the bubble's own colour and rounding */
+.chal-message::before {
+ content: '';
+ position: absolute;
+ top: -3px; left: 13px;
+ width: 8px; height: 8px;
+ background: inherit;
+ border-radius: 2px;
+ transform: rotate(45deg);
+}
+/* Clamped to two lines rather than truncated in JS, exactly like .card-desc:
+ the whole string stays in the DOM for the hover popup and a screen reader.
+ It lives on the inner span because `overflow: hidden` on the bubble itself
+ would crop the tail off — only the card variant nests one, and the roomier
+ places below simply have no span to match. */
+.chal-message > span {
+ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+ overflow: hidden;
+}
+/* In the details panel and on the win card there is room to say all of it. */
+.chal-message.panel, .chal-message.beaten {
+ margin: 8px 0;
+ padding: 7px 11px;
+ font-size: 14px;
+}
+/* the attribution stays where it was — the point up is for what was SAID, and
+ growing the "— name" with it would just make the bubble louder, not clearer */
+.chal-message cite { display: block; margin-top: 3px; font-style: normal; font-size: 11px; opacity: 0.7; }
+.chal-panel {
+ margin: 10px 0;
+ padding: 8px 10px;
+ border: 1px solid var(--line);
+ border-left: 3px solid var(--teal);
+ border-radius: 8px;
+ background: var(--paper-dim);
+}
+.chal-row { font-size: 13px; }
+.chal-row + .chal-row { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+/* search + sort above a profile list */
+/* The challenge action on your OWN level rows is a plain `.btn.tiny`, exactly
+ like the delete beside it — see levelChallengeAction(). Two hover-reveal
+ rules used to live here, `.card-chal-btn` (revealed by `.card:hover`) and
+ `.row-chal-btn` (by `.solve-row:hover`), and BOTH named an ancestor the
+ profile table does not have: the button rendered at opacity 0 forever, and
+ absolutely positioned into the corner of the page if it ever showed. A
+ sealed race keeps its own colour, because that one is a STATE rather than an
+ action and should read at a glance down a list. */
+/* A secret shown exactly once (the admin password reset, §13). Big, monospace
+ and selectable, because it is going to be read aloud or retyped by hand — and
+ boxed, so it reads as a thing to take away rather than as body text. */
+/* "Press Space to start" on a machine opened from a link (§10.4). Sits over the
+ canvas, out of the way of the toolbar and the dock, and is clickable itself
+ because a visitor who followed a link may well be on a touchscreen. */
+.start-prompt {
+ left: 50%;
+ top: 96px;
+ transform: translateX(-50%);
+ display: flex;
+ align-items: baseline;
+ gap: 6px;
+ font-size: 14px;
+ padding: 10px 16px;
+ border-radius: 999px;
+ border: 1px solid var(--line);
+ background: var(--plate);
+ box-shadow: var(--shadow);
+ cursor: pointer;
+ animation: start-pulse 2.2s ease-in-out infinite;
+}
+.start-prompt:hover { background: var(--paper); }
+@keyframes start-pulse { 0%, 100% { opacity: .92; } 50% { opacity: 1; } }
+
+.reveal-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.reveal-code {
+ flex: 1;
+ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+ font-size: 18px;
+ font-weight: 700;
+ letter-spacing: .04em;
+ user-select: all;
+ padding: 8px 12px;
+ border: 1px solid var(--line);
+ border-radius: 8px;
+ background: var(--paper);
+ overflow-wrap: anywhere;
+}
+.chal-sealed { background: #fde9c9; border-color: #e0b062; }
+.chal-sealed:hover { background: #fbdcae; }
+/* the countdown on a sealed race's own page — the whole point of the screen,
+ so it gets the size to match */
+.race-clock {
+ font-size: 44px;
+ font-weight: 800;
+ font-variant-numeric: tabular-nums;
+ color: var(--teal);
+ margin: 10px 0;
+}
+/* …and the challenger's line under it: the same reversed bubble as everywhere
+ else, sized up because on this screen there is nothing else to read (§11.8). */
+.race-message {
+ position: relative;
+ max-width: 520px;
+ margin: 20px auto;
+ padding: 12px 18px;
+ border-radius: 12px;
+ background: var(--ink);
+ color: #fff;
+ text-align: left;
+ font-size: 18px;
+ font-style: italic;
+ overflow-wrap: anywhere;
+}
+.race-message::before {
+ content: '';
+ position: absolute;
+ top: -5px; left: 26px;
+ width: 12px; height: 12px;
+ background: inherit;
+ border-radius: 3px;
+ transform: rotate(45deg);
+}
+.race-message cite { display: block; margin-top: 6px; font-style: normal; font-size: 13px; opacity: 0.7; }
+/* Icon only — the name lives in the tooltip (§11.4). Fixed width so the full
+ set lines up column-for-column across stacked rows. */
+.badge {
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ width: 26px;
+ height: 26px;
+ background: var(--paper-dim);
+ border: 1px solid var(--line);
+ border-radius: 50%;
+ font-size: 13px;
+ line-height: 1;
+ margin: 2px 3px 0 0;
+ cursor: help;
+}
+.badge.tiny { width: 21px; height: 21px; font-size: 11px; }
+/* A NEGATIVE badge (BADGE_DEFS `neg: true`) — something you did WITHOUT, drawn
+ as the thing itself inside a red prohibition sign: the badge's own disc
+ becomes the ring, and ::after is the bar across it.
+
+ Drawn rather than typed because there is no code point for it. The obvious
+ spelling, glyph + U+20E0 (combining enclosing circle-backslash), does not
+ composite over an emoji base: measured in this browser, ⚡⃠ came out 18px
+ wide against the bolt's 55 — a thin text-form bolt with a stray mark. The
+ glyph therefore stays plain, which is also what the text uses want
+ (challengeTip writes "⚡ No Power", where the word carries the meaning).
+
+ The ring is the existing border thickened and reddened rather than a second
+ circle inside it: `box-sizing: border-box` is global, so the badge does not
+ change size and a row of badges stays on its baseline. */
+.badge.neg {
+ position: relative;
+ border-width: 2px;
+ border-color: var(--danger, #e23434);
+ /* the subject has to survive having a bar drawn across it — at the default
+ 13px inside a 2px ring there was more sign than symbol */
+ font-size: 15px;
+}
+.badge.neg.tiny { font-size: 12px; }
+.badge.neg::after {
+ content: '';
+ position: absolute;
+ /* Thin on purpose. The bar has to read as a bar and nothing more — at 2.5px
+ across a 26px disc it was covering the subject it is meant to negate, and
+ the badge became a sign with something behind it rather than a symbol with
+ a line through it. 1.5px is enough to see and little enough to see past.
+
+ **It has to run THROUGH the ring, not up to it, and its ends have to be
+ square.** An absolutely positioned child is laid out against the padding
+ box, so `0` is the ring's INNER edge: a bar that wide, turned 45°, stops
+ dead where the ring begins and reads as two separate marks. `-2px` — the
+ border width — makes it 26px, the full outer diameter, so both ends
+ finish flush with the outside of the ring and the whole thing is one
+ symbol. The rounded ends had to go for the same reason: `border-radius`
+ files off precisely the corners that do the touching. */
+ left: -2px; right: -2px; top: 50%;
+ height: 1.5px;
+ background: var(--danger, #e23434);
+ border-radius: 0;
+ /* **Top-left to bottom-right**, which is both the convention for a
+ prohibition sign and the only angle that works here: ⚡ is itself a
+ diagonal running the other way, so a bottom-left-to-top-right bar lay
+ along the bolt and erased it instead of crossing it. */
+ transform: translateY(-50%) rotate(45deg);
+ /* No outline around the bar. It had a pale one to keep it legible where it
+ crosses the glyph, and at 1.5px that halo was most of what you saw — a
+ red line in a white sleeve rather than a red line. Thin and bare reads
+ better against both the bolt and the wheel. */
+ pointer-events: none;
+}
+.badge.neg.tiny::after { height: 1.25px; }
+/* An UNEARNED one drains with the rest of the badge, bar included, and that is
+ correct rather than a limitation to work around: a ghost is a slot you did
+ not fill, so a red stroke shouting from it would read as a warning about a
+ badge you simply have not earned. (It could not be undone from here anyway —
+ `.badge.ghost`'s own `filter: grayscale(1)` applies to the whole subtree,
+ pseudo-elements included, and a child cannot reverse a parent's filter.) */
+/* Un-won: the slot is still there, just hollowed out — a missing piece rather
+ than an absent one. Drained of colour and mostly transparent, so a row of
+ ghosts never competes with the ones actually earned. */
+.badge.ghost {
+ background: transparent;
+ border-style: dashed;
+ border-color: color-mix(in srgb, var(--line) 70%, transparent);
+ opacity: 0.32;
+ filter: grayscale(1);
+}
+.badge.ghost:hover { opacity: 0.6; }
+
+/* The campaign HUB: one card per set, two columns. Each card's mosaic is
+ four equal quarters — 1 thumb, 4, 16, then the rest — so a set reads as
+ one picture that densifies as you look around it. Blank cells keep the
+ grid even when a set is short. One column on a phone. */
+.set-cards {
+ display: grid;
+ grid-template-columns: repeat(2, minmax(0, 1fr));
+ gap: 20px;
+ margin-bottom: 40px;
+}
+@media (max-width: 720px) { .set-cards { grid-template-columns: 1fr; } }
+.set-card .set-thumbs {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 2px;
+ background: var(--line);
+}
+.set-card .set-q {
+ display: grid;
+ gap: 1px;
+ min-width: 0;
+ min-height: 0;
+ aspect-ratio: 264 / 148;
+ background: var(--line);
+ overflow: hidden;
+}
+.set-card .set-q-1 { grid-template-columns: 1fr; }
+.set-card .set-q-4 { grid-template-columns: 1fr 1fr; }
+.set-card .set-q-16 { grid-template-columns: repeat(4, 1fr); }
+.set-card .set-q-all { grid-template-columns: repeat(var(--cols, 4), 1fr); }
+.set-card .set-thumb {
+ width: 100%;
+ height: 100%;
+ display: block;
+ object-fit: cover;
+ background: linear-gradient(var(--sky-top), var(--sky-bot));
+}
+.set-card .set-thumb-blank { background: var(--paper); }
+.set-card .set-card-body { padding: 12px 16px 14px; }
+.set-card .set-title { margin: 0 0 4px; font-size: 1.35em; }
+.set-card .set-blurb { margin: 0 0 8px; }
+.set-card .set-count { margin: 0; font-weight: 600; color: var(--accent, inherit); }
+.campaign-back { margin: -6px 0 14px; }
+
+/* The campaign's SETS (levels.js SETS): a set heading and intro over the pages
+ it holds. A page's own heading steps down to h3 under it, so Starters reads
+ as one set of four parts and Sticks as one set with one grid. */
+.challenge-set { margin-bottom: 44px; }
+.challenge-set .set-title { margin-bottom: 2px; font-size: 1.5em; }
+.challenge-set > .set-blurb { margin: 0 0 16px; max-width: 60ch; }
+.challenge-page { margin-bottom: 34px; }
+.challenge-page h2, .challenge-page h3 { margin-bottom: 2px; }
+.challenge-page > .muted { margin: 0 0 12px; }
+
+/* Search, author, badges — one row, because they are one question. The text
+ boxes are deliberately modest: a search field wide enough for a paragraph
+ suggests you should type one, and the badge filter earns the space more
+ (nine taps vs. remembering what a level was called). */
+.browse-search-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; width: 100%; }
+/* Sized so search + author + both selects + the badge filter land on ONE line at
+ the 1100 px content width. The badges are the fixed cost (they can't shrink
+ and stay tappable) and the filter never breaks internally — it wraps as a
+ unit — so the text boxes absorb the difference, which is the right way round
+ anyway. Adding a badge widens the filter by ~34 px; check this row still fits. */
+.browse-search-row .search { flex: 0 1 220px; min-width: 130px; }
+.browse-search-row .author { flex: 0 1 150px; min-width: 110px; }
+.browse-search-row select.input { flex: 0 0 auto; }
+.browse-search-row .view-toggle,
+.info-filters .view-toggle {
+ margin-left: auto;
+ flex: 0 0 auto;
+}
+.view-toggle {
+ display: inline-flex;
+ gap: 2px;
+ align-items: center;
+}
+.view-toggle-btn {
+ width: 32px; height: 32px;
+ padding: 0;
+ border: 1px solid var(--line);
+ background: var(--paper);
+ border-radius: 8px;
+ cursor: pointer;
+ font-size: 16px;
+ line-height: 1;
+ color: var(--ink-soft);
+ opacity: .55;
+}
+.view-toggle-btn:hover { opacity: .9; }
+.view-toggle-btn.on {
+ opacity: 1;
+ color: var(--ink);
+ outline: 2px solid var(--teal);
+ background: var(--teal-soft);
+}
+.tiles-grid {
+ display: grid;
+ grid-template-columns: repeat(4, minmax(0, 1fr));
+ gap: 16px;
+ margin-bottom: 16px;
+}
+.tiles-grid > .muted { grid-column: 1 / -1; }
+.card-thumb-empty {
+ height: 148px;
+ background: linear-gradient(var(--sky-top), var(--sky-bot));
+}
+.card.attempt { opacity: .78; }
+@media (max-width: 980px) {
+ .tiles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+ .tiles-grid { grid-template-columns: minmax(0, 1fr); }
+}
+/* Workshop completion filter: circle, three clicks Off → Incomplete → Completed */
+.star-filter {
+ flex: 0 0 auto;
+ position: relative;
+ width: 34px; height: 34px;
+ border-radius: 50%;
+ border: 2px solid var(--line);
+ background: var(--paper);
+ font-size: 16px;
+ line-height: 1;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ cursor: pointer;
+ padding: 0;
+ color: #cfd6e4;
+ filter: grayscale(1);
+ opacity: .5;
+ overflow: visible;
+}
+.star-filter:hover { opacity: .85; }
+.star-filter[data-mode="none"] {
+ filter: none;
+ opacity: 1;
+ color: var(--gold);
+ border-color: var(--danger, #e23434);
+ background: color-mix(in srgb, var(--danger, #e23434) 10%, var(--paper));
+}
+.star-filter[data-mode="yes"] {
+ filter: none;
+ opacity: 1;
+ color: var(--gold);
+ border-color: var(--gold);
+ background: color-mix(in srgb, var(--gold) 16%, var(--paper));
+}
+.badge-filter { display: inline-flex; flex-wrap: nowrap; gap: 4px; align-items: center; }
+.badge-btn { position: relative; width: 30px; padding: 4px 0; font-size: 14px; cursor: help; overflow: visible; }
+.badge-btn:not(.active):not(.exclude) { filter: grayscale(1); opacity: 0.55; }
+.badge-btn.active { outline: 2px solid var(--teal); background: var(--teal-soft); }
+.badge-btn.exclude {
+ filter: none;
+ opacity: 1;
+ outline: 2px solid var(--danger, #e23434);
+ background: color-mix(in srgb, var(--danger, #e23434) 10%, var(--paper));
+}
+/* "Without" state: a big red X over the glyph, both arms so it reads as a
+ cross rather than the single prohibition bar the negative badges already wear. */
+.badge-btn.exclude::before,
+.badge-btn.exclude::after,
+.star-filter[data-mode="none"]::before,
+.star-filter[data-mode="none"]::after {
+ content: '';
+ position: absolute;
+ left: 50%;
+ top: 50%;
+ width: 130%;
+ height: 3.5px;
+ background: var(--danger, #e23434);
+ border-radius: 1px;
+ pointer-events: none;
+ z-index: 1;
+ box-shadow: 0 0 0 1px color-mix(in srgb, var(--paper) 70%, transparent);
+}
+.badge-btn.exclude::before,
+.star-filter[data-mode="none"]::before {
+ transform: translate(-50%, -50%) rotate(45deg);
+}
+.badge-btn.exclude::after,
+.star-filter[data-mode="none"]::after {
+ transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.center-msg { text-align: center; padding: 80px 20px; width: 100%; }
+
+/* ---------- profile ---------- */
+
+.profile-head { margin-bottom: 6px; }
+.points-disclaimer { font-size: 12px; color: var(--ink-soft); }
+.profile-diff { margin: 2px 0 0; }
+/* the figure itself is the point of the line, so it isn't muted with the label */
+.diff-strong { color: var(--ink); font-weight: 600; cursor: help; }
+.profile-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.points-log { margin-top: 6px; }
+.points-row { padding: 2px 0; }
+/* the sign leads each row and is what you scan for — a fixed width keeps the
+ reasons in a column instead of ragged against ±1 vs ±1000 */
+.points-delta { display: inline-block; min-width: 3.2em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.points-delta.up { color: var(--teal); }
+.points-delta.down { color: var(--ink-soft); }
+
+/* ---------- import screen ---------- */
+
+.import-lede { max-width: 78ch; margin: -10px 0 18px; }
+.import-grid {
+ display: grid;
+ grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+ gap: 18px;
+ align-items: start;
+}
+.import-panel {
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: var(--radius);
+ padding: 14px 16px 16px;
+}
+.import-panel h2 { font-size: 16px; margin: 0 0 10px; }
+.import-panel-head { display: flex; align-items: center; gap: 8px; }
+.import-panel-head h2 { flex: 1; }
+.import-text {
+ width: 100%;
+ font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+ font-size: 12px;
+ line-height: 1.45;
+ resize: vertical;
+ /* level text is usually one very long line — wrap it so the whole paste is
+ readable instead of hiding it behind a horizontal scrollbar */
+ white-space: pre-wrap;
+ overflow-wrap: anywhere;
+}
+.import-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; }
+/* the global select.input is width:auto (it lives in flex rows elsewhere);
+ in this grid each control owns its column, so fill it */
+.import-opts select.input { display: block; width: 100%; }
+.import-scale { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.import-scale .input { flex: 1; min-width: 0; margin-top: 0; }
+/* One row per code the letter rule had to guess at (2026-08-10). It appears
+ only when a paste actually used one, so the ordinary import is unchanged —
+ and it sits directly under the options it overrides, because that is the
+ relationship: the Terrain texture select above is the level's default, and
+ these are the exceptions to it. Fixed columns so a run of codes reads as a
+ list of the same question rather than as ragged rows. */
+.import-letters { margin: 10px 0 2px; }
+.import-letters-lede { margin: 0 0 6px; }
+.import-letter {
+ display: grid;
+ grid-template-columns: 3.5em 6.5em minmax(0, 1fr);
+ align-items: center;
+ gap: 8px;
+ margin: 4px 0;
+ font-size: 13px;
+}
+.import-letter b { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; }
+.import-letter .input { margin: 0; width: 100%; }
+/* (`.import-codes` styled the grammar table under the paste box, removed
+ 2026-08-10 with the table itself. The monospace-code column lives on in
+ `.import-letter b`, which is the same idea kept for the one case where a code
+ still has to be shown: the ones the letter rule had to guess at.) */
+.import-preview {
+ width: 100%;
+ height: auto;
+ display: block;
+ border: 1px solid var(--line);
+ border-radius: 8px;
+ background: linear-gradient(var(--sky-top), var(--sky-bot));
+}
+.import-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 13px; color: var(--ink-soft); }
+.import-stat b { color: var(--ink); font-weight: 700; }
+.import-warnings { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+.import-warnings li { margin: 4px 0; }
+.import-warnings:empty { display: none; }
+.import-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+
+/* ---------- game screen ---------- */
+
+.screen-holder { position: relative; flex: 1; display: flex; min-height: calc(100vh - 53px); }
+/* The 53 above is a GUESS at the nav's height, and the phone nav wraps to two
+ rows (78 px) — so the game root hung 25 px below the viewport and the
+ toolbar's carefully-measured cap measured against a root nobody could see
+ the bottom of. Where :has() exists, stop guessing: cap the app column at
+ the real viewport (dvh, so a phone's URL bar is honest too) and let flex
+ hand the game exactly what the nav leaves. The calc stays as the fallback. */
+#app:has(.main.full) { height: 100vh; height: 100dvh; }
+#app:has(.main.full) .main.full { min-height: 0; }
+#app:has(.main.full) .screen-holder { min-height: 0; }
+
+/* ---------- the nav gets out of the way of a game (2026-08-11) ----------
+ On request: "the top line (LIFIRIK and menu items) to auto hide during Test,
+ Create and playing the game … the second line (< back, Level Name) should
+ become top line."
+
+ Both halves are this one declaration. `position: fixed` takes the nav OUT OF
+ FLOW, so `.main.full` — the only in-flow child of a column that is exactly
+ 100dvh tall — grows into the space it left and the game root starts at y=0.
+ `.hud-top` is pinned to the top of that root, so the level's own bar rises to
+ the top of the screen on its own: nothing has to move it, and nothing has to
+ know how tall the nav was. Then the transform takes the nav away.
+
+ `.main.full` is set by the two game screens and nothing else, so the `:has()`
+ IS the list of screens this applies to — Campaign, Workshop, ?, ⚙ and ♥ never
+ match it. A browser without `:has()` never matches either and keeps the sticky
+ nav it always had, which is the right thing to degrade to.
+
+ The peek class goes on #app (see `navShown` in util.js for the two
+ thresholds). Transformed rather than `display: none` so it slides, and so it
+ still has a measurable height while hidden — that height is what decides when
+ the pointer has left it.
+
+ **A phone hides it too now, behind the L** (2026-08-14, on request: "Have
+ the title shrink to just the (L) of LFRK. Tapping it will bring back the
+ title."). A finger has no hover to reach a top-strip reveal with, so hiding
+ the nav on touch used to mean losing the doors with no door-handle — the
+ handle is now `.nav-knob`, the wordmark's own L-wheel (faviconSVG), fixed
+ over the spot where hud-top's `‹ Back` sits. Back itself is hidden on
+ coarse: the nav one tap away is MORE of a way out than Back ever was —
+ every door, not just the one you came through. Tapping the knob feeds y=0
+ to the same `navShown` the pointer strip feeds, and a tap below the nav's
+ bottom edge is the finger's way of leaving it — one rule set, two input
+ styles (main.js). While the nav is down the knob yields to it: the brand
+ in the nav's own corner is the same mark, grown back to the whole word. */
+#app:has(.main.full) .nav {
+ position: fixed;
+ top: 0; left: 0; right: 0;
+ transform: translateY(-100%);
+ transition: transform .16s ease;
+}
+#app.nav-peek:has(.main.full) .nav { transform: none; }
+/* A keyboard user tabbing into a nav they cannot see: the focus ring would be
+ off screen and the tab order would lead somewhere invisible. */
+#app:has(.main.full) .nav:focus-within { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+ #app:has(.main.full) .nav { transition: none; }
+}
+
+/* The knob itself: a game-screen, coarse-pointer thing, and never up at the
+ same time as the nav it summons. Sized and placed to cover `‹ Back`'s box
+ (hud-top pads 8px 12px, the ghost buttons run ~36px tall on touch).
+
+ **Under the HUD (10), deliberately** (2026-08-14, on request: "Make the (L)
+ be behind the toolbar. While I work I don't want any (L) present. And I
+ know where it is if I need it."). It sat at 30 first, and a bar parked in
+ the corner was trapped: the knob ate the grip's every tap. Now anything
+ parked there wins — covering the L is the player choosing to put it away,
+ and the phone's own back gesture is still a way out. Two consequences are
+ features, not casualties: hud-top's gradient washes the exposed knob quiet
+ (it is a landmark, not a control that needs to shout), and a bar dragged
+ over it simply works. Above the canvas (auto); nav (40) and every
+ transient still clear it. */
+.nav-knob {
+ display: none;
+ position: fixed;
+ top: 8px; left: 10px;
+ z-index: 9;
+ width: 40px; height: 40px;
+ align-items: center;
+ justify-content: center;
+ padding: 0;
+ border: 1px solid var(--line);
+ border-radius: 10px;
+ background: var(--plate);
+ box-shadow: 0 2px 8px rgba(35, 42, 53, .12);
+}
+@media (pointer: coarse) {
+ #app:not(.nav-peek):has(.main.full) .nav-knob { display: flex; }
+ /* `‹ Back` and hud-top's clearance for the knob live with the other coarse
+ hud-top rules further down — the base `.hud-top` shorthand is declared
+ between here and there and would win the padding back. */
+}
+/* …and while a game screen is up, the browser's pull-to-refresh is switched
+ off wholesale: the page cannot scroll (capped above), so any downward
+ touch the HUD failed to claim would chain to the viewport and offer to
+ reload the editor out from under a machine. Game routes only — a doc page
+ keeps whatever its browser does. */
+html:has(.main.full), body:has(.main.full) { overscroll-behavior-y: none; }
+.game-host { position: relative; flex: 1; }
+.game-root { position: absolute; inset: 0; overflow: hidden; user-select: none; }
+/* `default`, not `crosshair`: the cursor is now a state machine driven from
+ the hover resolution the editor already does (game.js `_cursorFor`), and
+ this is only what shows in the frame before the first sync. A crosshair
+ here flashed over a level you had not touched yet. */
+.game-canvas { position: absolute; inset: 0; touch-action: none; cursor: default; }
+
+.hud { position: absolute; z-index: 10; }
+
+.hud-top {
+ top: 0; left: 0; right: 0;
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ padding: 8px 12px;
+ background: linear-gradient(var(--plate), color-mix(in srgb, var(--plate-solid) 55%, transparent) 70%, transparent);
+ pointer-events: none;
+}
+.hud-top > * { pointer-events: auto; }
+/* ‹ ^ › on a campaign level (2026-08-19): three glyph buttons where "‹ Back"
+ was — previous level, the set's page, next level. One group, no gaps, so
+ they read as one control; a side with no neighbour keeps its arrow greyed
+ rather than shifting the row. */
+.hud-nav { display: inline-flex; gap: 4px; }
+/* Record's exact box (2026-08-19, picture: the narrow pill with the
+ red dot): the same 5 px sides and 8 px top/bottom as .rec-btn, the same
+ zero-width glyph that gives it the dock's text height, and a glyph the size
+ of the dot — 9 px — so the three come out 21 wide like Record itself. */
+.hud-nav .btn { min-width: 0; padding: 8px 5px; display: inline-flex; align-items: center; justify-content: center; gap: 0; }
+.hud-nav .btn::after { content: '↺'; display: inline-block; width: 0; overflow: hidden; }
+.hud-nav .btn svg { display: block; width: 9px; height: 9px; }
+.hud-nav .btn[disabled] { opacity: .35; cursor: default; }
+.level-name { font-weight: 800; font-size: 15px; cursor: help; }
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.tab { font: inherit; font-size: 13px; font-weight: 600; border: 0; background: transparent; padding: 6px 12px; cursor: pointer; color: var(--ink-soft); }
+.tab.active { background: var(--teal); color: #fff; }
+
+.hint-box {
+ position: absolute;
+ top: 48px; left: 50%;
+ transform: translateX(-50%);
+ z-index: 12;
+ background: #fff8dc;
+ border: 1px solid #e8d48b;
+ padding: 10px 16px;
+ border-radius: 10px;
+ max-width: 480px;
+ box-shadow: var(--shadow);
+ font-size: 14px;
+}
+
+/* Toolbar: relocatable (drag the grip) + orientable (horizontal/vertical).
+ Position is set inline (left/top) by JS; only chrome lives here. */
+
+/* ---------- --bar-scale: all three bars at 80% (2026-08-11, on request:
+ "all the toolbars (T, P and A) 20% smaller … same ratios") ----------
+
+ **Every length in the three bars is written as its full-size number times
+ this**, so the numbers below still read as the measured figures they are and
+ every piece of arithmetic in the comments still checks out — in base units.
+ The slack scales with them, which is the point: the horizontal piece toolbar
+ sits 50 px inside its cap at full size and 40 px inside it here, so nothing
+ moves closer to the overflow threshold these bars have been parked on four
+ times (see .dock-inner, .adv-ops-row, the two caps below).
+
+ `var(--bar-scale, 1)` and not a bare `var()`, everywhere: a bare one is
+ guaranteed-invalid where the variable is undefined, which UNSETS the whole
+ declaration rather than falling back — and `.play-btn` and `.tool` also
+ dress the Learn page's try-it sandbox, well outside any bar. The fallback is
+ what keeps this rule sheet's reach exactly three elements wide.
+
+ Two things here are not lengths in this file and take `zoom` instead: the
+ inline SVG icons, which carry their size as width/height ATTRIBUTES (24, 22
+ and 20) that CSS cannot multiply, and the range sliders, which the UA draws.
+ `zoom` is the right tool for exactly those and the wrong one for the wrap —
+ it scales an element's own inline `left`/`top`, and JS positions these bars.
+
+ NOT scaled: the scrub row (§7.4). Its 26 px thickness and 6 px gap are the
+ two numbers `SCRUB_ROW_H`/`SCRUB_ROW_GAP` hold in util.js so the hover zone
+ can be computed before the row has a box, and it is a drag target rather
+ than a button. Its contents follow `.dock-stat` down. */
+.toolbar-wrap {
+ --bar-scale: 0.8;
+ display: flex;
+ flex-direction: column;
+ gap: calc(4px * var(--bar-scale, 1));
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-radius: calc(12px * var(--bar-scale, 1));
+ padding: calc(6px * var(--bar-scale, 1));
+ box-shadow: var(--shadow);
+ max-width: min(90vw, calc(480px * var(--bar-scale, 1))); /* vertical: one ~60px icon column, plenty */
+}
+/* The shared button, bar-local. `:where()` so this adds NO specificity: it has
+ to beat the global `.btn` (earlier in this file) and lose to every rule below
+ that sizes one particular button, which is exactly what equal specificity
+ plus source order does. Scoped `.toolbar-wrap .btn` instead, it outranked
+ `.play-btn`, `.dock-mini`, `.rec-btn` and `.snap-btn` and flattened all four
+ back to a generic button. */
+:where(.toolbar-wrap) .btn {
+ font-size: calc(14px * var(--bar-scale, 1));
+ padding: calc(8px * var(--bar-scale, 1)) calc(14px * var(--bar-scale, 1));
+ border-radius: calc(8px * var(--bar-scale, 1));
+ gap: calc(6px * var(--bar-scale, 1));
+}
+:where(.toolbar-wrap) .btn.tiny {
+ font-size: calc(12px * var(--bar-scale, 1));
+ padding: calc(4px * var(--bar-scale, 1)) calc(9px * var(--bar-scale, 1));
+ border-radius: calc(7px * var(--bar-scale, 1));
+}
+:where(.toolbar-wrap) svg,
+:where(.toolbar-wrap) input[type="range"] { zoom: var(--bar-scale, 1); }
+.toolbar-wrap.horizontal {
+ flex-direction: row;
+ align-items: flex-start;
+ /* must fit the header column + the full tool row — the vertical cap above is
+ far too narrow and made the panel's own background stop short of its
+ icons. 760 was sized for a 13-icon row; Create's is 15 (730px) plus ~39 of
+ header column, so the wrap itself was the second thing clipping it.
+ …and 16 since the pin tool joined it (2026-08-08). This cap must clear the
+ TOOLS cap below plus the chrome around it: 830 + ~39 header + 4 gap + 12
+ padding + 2 border = 887. Re-measure both lines together whenever a button
+ is added — they are arithmetic, not a taste, and raising only one of them
+ moves the clip rather than removing it. */
+ max-width: min(96vw, calc(890px * var(--bar-scale, 1)));
+}
+/* …but the DOCK's row is wider than the piece toolbar's, and 760 above is
+ sized for that 13-icon row. The dock needs ~732 of content plus the header
+ column, so it was a few pixels short — permanently, which is what put it on
+ the edge of its own overflow and made every readout change flash a
+ scrollbar (see .dock-inner). Raised for the dock alone; the piece toolbar
+ keeps the cap that was measured for it. */
+.toolbar-wrap.horizontal:has(.dock-inner) { max-width: min(96vw, calc(820px * var(--bar-scale, 1))); }
+/* …and the Advanced bar's own, measured the same way: its `.adv-inner` caps at
+ 620, plus ~39 of header column, 4 of gap, 12 of padding and 2 of border. */
+.toolbar-wrap.horizontal:has(.adv-inner) { max-width: min(96vw, calc(700px * var(--bar-scale, 1))); }
+.toolbar-header {
+ display: flex;
+ flex-shrink: 0;
+ align-items: center;
+ justify-content: space-between;
+ gap: calc(2px * var(--bar-scale, 1));
+}
+/* **The header is a ROW when the bar is** (2026-08-09, on request: "can we do
+ anything about the dead space below buttons on the toolbars in horizontal
+ mode?").
+
+ It stacked its grip over its orient button whatever the bar was doing, which
+ made it 50.5px tall against a 42px row of tools — so the bar was sized by its
+ HANDLE, and the 15.5px underneath the buttons was the difference. Measured
+ exactly that way before touching it.
+
+ Side by side the header is ~24px tall, comfortably inside the content, and
+ the bar is finally as tall as the thing it is holding. `align-self: center`
+ so that when the tools DO wrap to two rows the handle sits against their
+ middle rather than clinging to the top. */
+.toolbar-wrap.horizontal .toolbar-header { flex-direction: row; align-self: center; }
+.toolbar-grip, .toolbar-orient {
+ font: inherit;
+ border: 0;
+ background: transparent;
+ color: var(--ink-soft);
+ border-radius: calc(6px * var(--bar-scale, 1));
+ padding: calc(3px * var(--bar-scale, 1)) calc(5px * var(--bar-scale, 1));
+ cursor: pointer;
+}
+.toolbar-grip { cursor: grab; font-size: calc(14px * var(--bar-scale, 1)); touch-action: none; position: relative; }
+/* The bar's own shortcut letter, over its handle — the same badge a tool button
+ wears for its key, in the one place that survives the bar being folded. */
+.bar-key {
+ position: absolute;
+ right: 0; bottom: calc(-1px * var(--bar-scale, 1));
+ font-size: max(var(--hud-type-min), calc(9px * var(--bar-scale, 1))); font-weight: 800; line-height: 1;
+ color: var(--teal);
+ pointer-events: none;
+}
+.toolbar-grip:active { cursor: grabbing; background: var(--teal-soft); }
+/* The WHOLE header is the drag surface now (_bindBarDrag) — so the whole
+ header must own its touches, or the browser reads a thumb that missed the
+ 24 px glyph as a scroll and turns it into pull-to-refresh. Safe here in a
+ way it is not on the wrap: the header holds two buttons and nothing that
+ scrolls, while the wrap contains the tool list whose finger-scroll
+ touch-action:none would kill (effective touch-action intersects ancestors). */
+.toolbar-header { touch-action: none; cursor: grab; }
+.toolbar-header:active { cursor: grabbing; }
+.toolbar-orient { font-size: calc(13px * var(--bar-scale, 1)); }
+.toolbar-orient:hover, .toolbar-grip:hover { background: var(--teal-soft); color: var(--teal); }
+/* A FOLDED bar (double-tap the grip, _toggleBarMin) is just its handle: the
+ content and the orient toggle go, the grip stays — small enough to glide
+ anywhere on any screen, which is the whole point on a phone where a
+ full-height toolbar has a few px of drag freedom. */
+.toolbar-wrap.minimized > :not(.toolbar-header) { display: none; }
+.toolbar-wrap.minimized .toolbar-orient { display: none; }
+.toolbar-wrap.minimized { opacity: 0.92; }
+/* Single column/row + scroll, NOT flex-wrap: column-wrap with only
+ max-height (no definite height) wraps unreliably across browsers/viewport
+ sizes — it silently clipped tools rather than reflowing them. A scrollbar
+ guarantees every tool stays reachable at any window size. */
+.toolbar-tools {
+ display: flex;
+ flex-direction: column;
+ /* NOT flex-shrink:0 here — the container must be allowed to shrink below
+ its content's natural size so ITS OWN overflow:auto can kick in when
+ the wrap is tight; flex-shrink:0 belongs on .tool (below) so the ICONS
+ never shrink, not on the container (that made the container refuse to
+ shrink and spill past the wrap's edge instead of scrolling). min-height
+ is required alongside — flex items default to min-height:auto, which
+ silently blocks shrinking-to-scroll the same way flex-shrink:0 would. */
+ min-height: 0;
+ gap: calc(5px * var(--bar-scale, 1));
+ /* A STARTING cap only — _fitBarInner replaces it with an inline max-height
+ measured against the canvas on every layout pass, because the bar is
+ draggable and the Create tab's 14 tools (625 px) exceed any figure that
+ also fits a short window. The flat `min(600px, 100vh - 160px)` this
+ replaces made Create scroll always, on every screen. */
+ max-height: calc(100vh - 90px);
+ overflow-y: auto;
+ overflow-x: hidden;
+ padding-right: calc(2px * var(--bar-scale, 1));
+ scrollbar-width: thin;
+}
+.toolbar-wrap.horizontal .toolbar-tools {
+ flex-direction: row;
+ min-height: 0;
+ min-width: 0; /* same reasoning as min-height, for the row axis */
+ max-height: none;
+ /* **Measured, and the old figure had gone stale.** This said "~632px true
+ content width (13 × 44px + 12 × 5px gap)" — but Create renders FIFTEEN
+ buttons now, the delete tool and the background toggle having arrived
+ after that number was written: 15 × 44 + 14 × 5 = 730, against a 700 cap.
+ So the row overflowed by 30px and Create always wore a scrollbar, which
+ is what was reported.
+ …and SIXTEEN since the pin tool joined it (2026-08-08): 16 × 44 + 15 × 5 =
+ 779, which 780 clears by one pixel — precisely the "permanently parked on
+ its own overflow threshold" state the dock was just rescued from, where
+ any width change flickers a scrollbar in and straight back out. 830 leaves
+ a button's worth of slack, which is the margin this line wants.
+ Re-measure this if the palette grows again; it is arithmetic, not taste. */
+ max-width: min(94vw, calc(830px * var(--bar-scale, 1)));
+ /* …and on a genuinely narrow window it WRAPS rather than scrolls, for the
+ reason the dock does (see .dock-inner): a scrollbar hides tools behind an
+ edge, and a hidden tool is worse than a taller bar. */
+ flex-wrap: wrap;
+ row-gap: calc(5px * var(--bar-scale, 1));
+ overflow-x: hidden;
+ overflow-y: hidden;
+ padding-right: 0;
+ padding-bottom: calc(2px * var(--bar-scale, 1));
+}
+.tool {
+ position: relative;
+ flex-shrink: 0; /* never squash — overflow must scroll, not shrink icons unreadable */
+ width: calc(44px * var(--bar-scale, 1)); height: calc(40px * var(--bar-scale, 1));
+ font: inherit;
+ border: 1px solid var(--line);
+ border-radius: calc(9px * var(--bar-scale, 1));
+ background: var(--paper);
+ cursor: pointer;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+}
+.tool:hover { background: var(--teal-soft); }
+.tool.active { background: var(--teal); border-color: var(--teal); }
+.tool.active .tool-label { color: #fff; }
+.tool-label { font-size: calc(17px * var(--bar-scale, 1)); font-weight: 800; color: var(--tool-tint, var(--ink)); }
+.tool-label svg { display: block; }
+.icon-btn { padding: calc(3px * var(--bar-scale, 1)) calc(6px * var(--bar-scale, 1)); }
+.icon-btn svg { display: block; }
+/* The chamfer trio rides the mini toolbar's cell (`.ctx-tool`), so the menu has
+ one button size in it top to bottom — these were `btn tiny` and the last
+ holdout. It takes the cell from `--ctx-cell` like everything else now. */
+.corner-toggle { display: inline-flex; gap: 3px; }
+.corner-btn { flex: 0 0 auto; color: var(--ink-soft); }
+.corner-btn.active { color: #fff; background: var(--teal); border-color: var(--teal); }
+.tool-key {
+ position: absolute;
+ right: calc(3px * var(--bar-scale, 1)); bottom: calc(1px * var(--bar-scale, 1));
+ font-size: max(var(--hud-type-min), calc(9px * var(--bar-scale, 1)));
+ color: var(--ink-soft);
+}
+/* the LETTER binding, bottom-left — the number keeps the right corner */
+.tool-letter { left: calc(3px * var(--bar-scale, 1)); right: auto; }
+.tool.active .tool-key { color: rgba(255,255,255,.8); }
+
+/* THE FAMILY FAN-OUT (2026-08-12) — hover a Terrain or Prop button and its
+ members lay out beside it, named, so one button costs you nothing you could
+ previously see.
+
+ **Positioned in JS, on the screen root rather than inside the bar** — the
+ same element `.ctx-menu` is appended to, and absolute against the same
+ positioned ancestor. The left/top come from the button's own rect:
+ `.toolbar-tools` is a scroll container with
+ overflow hidden on one axis and auto on the other, so a strip that lived
+ inside it would be clipped along exactly the axis it extends. Absolute
+ against the screen instead, and above the bar's own stacking — the toolbar
+ wrap has no z-index of its own, and `.ctx-menu` sits at 50, which this must
+ clear so a fan opened over an open menu is not behind it.
+
+ The dot marks the FAMILY'S OWN dial, not the selection: the fan is the one
+ place all three are visible at once, so it is where "this is the one the
+ button is standing for" belongs. It reuses `.active`'s teal so the strip and
+ the bar say "current" the same way. */
+/* **It is the BAR, continuing** (2026-08-12, to a picture): same panel chrome
+ as `.toolbar-wrap`, same `--bar-scale` (handed over in JS, since this strip is
+ a sibling of the bar rather than a child of it), and `.tool` cells inside at
+ their full size with their key badges on. A smaller icon in a differently
+ styled box read as a separate widget that had appeared next to the toolbar;
+ this reads as two more buttons on it. */
+.tool-fan {
+ --bar-scale: 0.8;
+ position: absolute;
+ z-index: 60;
+ display: flex;
+ gap: calc(5px * var(--bar-scale, 1));
+ padding: calc(6px * var(--bar-scale, 1));
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-radius: calc(12px * var(--bar-scale, 1));
+ box-shadow: var(--shadow);
+}
+/* **The hover bridge.** The strip's HIT area reaches back to the button that
+ opened it, across the bar's padding and the gap, so the strip is entered the
+ moment the button is left and a slow crossing cannot close it ("If I move to
+ slowly from toolbar to pop up menu the menu disappears", 2026-08-12).
+ Invisible — a pseudo-element, so it is hit-tested as part of `.tool-fan` and
+ fires that element's `pointerenter` without being anything you can see.
+ `--fan-bridge` is measured in JS, because the distance is the bar's padding
+ plus the gap and only the live box knows it. */
+.tool-fan::before {
+ content: '';
+ position: absolute;
+}
+.tool-fan.beside::before {
+ left: calc(-1 * var(--fan-bridge, 0px)); width: var(--fan-bridge, 0px);
+ top: 0; bottom: 0;
+}
+.tool-fan.below::before {
+ top: calc(-1 * var(--fan-bridge, 0px)); height: var(--fan-bridge, 0px);
+ left: 0; right: 0;
+}
+
+/* **A vertical bar fans out SIDEWAYS, a horizontal one downward** — away from
+ the bar rather than along it, so the strip never lies over the buttons above
+ and below the one being hovered. (It was the other way round for one
+ iteration and put the alternatives in a column hanging down the bar's own
+ line, which is exactly what "away from" is meant to avoid.) */
+.fan-icons { display: flex; flex-direction: row; gap: calc(5px * var(--bar-scale, 1)); }
+.tool-fan.below .fan-icons { flex-direction: column; }
+
+/* A caption strip lived here for one iteration and is gone (2026-08-12, on
+ request: "No text in the pop up just the icons"). It reserved a block of the
+ popup, permanently, for text only wanted while the pointer was on a cell —
+ and the site already has a tooltip that knows how to come and go. Both
+ popups now carry `data-tip-under`, which anchors that tooltip to the whole
+ box and puts it BELOW, clear of the icons (see `showTip` in util.js). */
+
+/* THE ONE SPOT LEFT when every bar is hidden (2026-08-12) — "All disappear and
+ become a single spot at that grab location… that puts menus back when
+ clicked."
+
+ It is the grip's own glyph at the grip's own size, because that is what it
+ IS: the handle, with the bar taken off it. Anything smaller reads as a
+ speck of dust on the canvas, and anything with a label on it is a bar again.
+ Positioned in JS (clamped into the canvas, like a bar) and deliberately at a
+ higher z than the bars it replaces, so it cannot end up behind one on the
+ frame where they are put back. */
+.all-menus-dot {
+ position: absolute;
+ z-index: 55;
+ width: 34px; height: 34px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 15px;
+ color: var(--ink-soft);
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-radius: 10px;
+ box-shadow: var(--shadow);
+ cursor: pointer;
+}
+.all-menus-dot:hover { background: var(--teal-soft); color: var(--teal); }
+
+/* The grip menu is icons only, so it needs none of `.ctx-menu`'s min-width —
+ four 26px cells and its own padding is the whole object. */
+.grip-menu { min-width: 0; }
+
+/* Brief play bar (2026-08-12): Revert / Undo / Redo / Fit step out. HIDDEN
+ rather than removed — `_updateStats` sets `disabled` on undo and redo on
+ every commit, so a button that stopped existing would mean teaching every
+ one of those callers that its target might be missing. */
+.dock-brief-hidden { display: none !important; }
+
+/* Play dock — shares .toolbar-wrap chrome (drag grip + orient toggle) with
+ the piece toolbar; only the content layout (.dock-inner) is dock-specific.
+ Default orientation is horizontal, opposite of the piece toolbar, so the
+ row/column swap is inverted relative to .toolbar-tools. */
+.dock-inner {
+ display: flex;
+ flex-direction: row;
+ align-items: center;
+ flex-shrink: 0;
+ min-height: 0;
+ gap: calc(8px * var(--bar-scale, 1));
+ /* 700 was under the dock's own natural width in Create (~732 with the
+ fixed-parts stat present), so it was ALWAYS overflowing — permanently
+ parked at the threshold, which is what made every readout change flash
+ the bar. Raised to clear it on a desktop; narrow windows still wrap. */
+ max-width: min(92vw, calc(800px * var(--bar-scale, 1)));
+ /* **It WRAPS rather than scrolls.** This was an `overflow-x: auto` box, and
+ on an ordinary window the dock's content sits within a few pixels of the
+ width it is given — so every change to a readout tipped it over the edge
+ and straight back, flashing a scrollbar in and out. Reported as the dock
+ flashing its scroll bar on some grid settings and sometimes mid-run: two
+ triggers, one cause, and the cause was that a toolbar was a scroll box.
+ Wrapping has no threshold to sit on, and nothing goes out of reach when
+ it does happen — a scrollbar hid the speed control until you found the
+ bar. The width fixes below stand anyway: fewer reflows is still better. */
+ flex-wrap: wrap;
+ justify-content: center;
+ row-gap: calc(6px * var(--bar-scale, 1));
+ overflow: hidden;
+}
+.toolbar-wrap.vertical .dock-inner {
+ flex-direction: column;
+ align-items: stretch;
+ min-width: 0;
+ max-width: none;
+ max-height: min(600px, calc(100vh - 160px));
+ overflow-y: auto;
+ overflow-x: hidden;
+}
+.dock-inner .btn { flex-shrink: 0; }
+/* **Half width — only ▶ is big** (2026-08-10, on request). Reset, undo, redo
+ and fit are one glyph each and were wearing `.btn`'s 14 px side padding,
+ which is sized for a button with a WORD in it: five equal slabs in a row,
+ the important one distinguished only by being teal. 5 px is the padding
+ `.rec-btn` already had, so the whole rank now matches the one member of it
+ that was already the right size, and the play button comes out at almost
+ exactly twice their width. Centred, because a glyph in a box this narrow
+ reads as off-centre otherwise. */
+.dock-mini { padding-left: calc(5px * var(--bar-scale, 1)); padding-right: calc(5px * var(--bar-scale, 1)); justify-content: center; }
+.play-btn { min-width: calc(40px * var(--bar-scale, 1)); justify-content: center; background: var(--teal); border-color: var(--teal); color: #fff; font-size: calc(17px * var(--bar-scale, 1)); }
+.play-btn.playing { background: var(--danger); border-color: var(--danger); }
+.dock-stat {
+ flex-shrink: 0;
+ font-size: calc(13px * var(--bar-scale, 1));
+ font-weight: 600;
+ color: var(--ink-soft);
+ padding: 0 calc(4px * var(--bar-scale, 1));
+ white-space: nowrap;
+ /* **Digits are all one width, so the row does not breathe.** .dock-inner is
+ an `overflow-x: auto` box with a max-width, so ANY change to the content's
+ total width can push it over the threshold and flash a scrollbar in and
+ straight back out. Reported as the dock flashing its scroll bar on some
+ grid settings and sometimes while running — two different readouts, one
+ cause. Proportional digits made every clock tick a relayout; tabular ones
+ make 0.0s and 8.8s exactly as wide as each other. */
+ font-variant-numeric: tabular-nums;
+}
+/* An empty stat leaves NO hole — a blank span still spends its padding plus
+ two flex gaps. `:empty` no longer catches a stacked readout (two child
+ spans), so callers toggle `.hidden` instead; the rule stays for anything
+ else that empties itself. */
+.dock-stat:empty { display: none; }
+.toolbar-wrap.vertical .dock-stat { text-align: center; }
+/* **Two lines: the figure, then what it is** (2026-08-10, on request:
+ `xxxx / pcs`). One line of `12 pcs · 4.5 kg · 0.0s` is a sentence you read
+ left to right to find one number, and the units cost as much width as the
+ figures. Stacked, each value sits in its own column at the same size in the
+ same place; the word below is a label you read once.
+
+ The middle-dot separator went with it — a `·` appended after a two-line
+ column lands beside the wrong line, and columns this distinct do not need
+ one. The gap does that job.
+
+ `line-height: 1` on both halves: two default line boxes are 34 px and the
+ buttons beside them are 38, so the bar would have grown to fit its own text. */
+.dock-stat.stacked {
+ display: inline-flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: calc(2px * var(--bar-scale, 1));
+ padding: 0 calc(6px * var(--bar-scale, 1));
+}
+.dock-val { font-size: calc(14px * var(--bar-scale, 1)); font-weight: 700; color: var(--ink); line-height: 1; }
+.dock-unit { font-size: max(var(--hud-type-min), calc(9.5px * var(--bar-scale, 1))); font-weight: 600; line-height: 1; letter-spacing: .04em; text-transform: uppercase; }
+/* **One reserved width for all four, and it is MEASURED.** A readout that
+ resizes as it counts is what made this bar flash its scrollbar, and stacking
+ them does not fix that on its own — it just moves the growth to whichever
+ column crossed a digit. Measured in this stylesheet at each column's honest
+ widest: "1000" pcs 44.2, "9999" kg 44.2, "1000" fixed 44.2, "120.0" secs 48.
+ So 48 covers every one of them, nothing ever changes width, and the four
+ columns come out an even grid — which is what the request drew. */
+.dock-stat.stacked { min-width: calc(48px * var(--bar-scale, 1)); }
+/* **Play and Ghost match the Advanced bar's width** (2026-08-25, on request).
+ JS pins `.toolbar-wrap` to Advanced's box; these let the dock's inner
+ take that width and put any leftover (or the 4 px it is naturally over)
+ into the pcs/kg/secs columns rather than wrapping a second row. */
+.toolbar-wrap.horizontal.dock-expanded .dock-inner {
+ flex: 1 1 auto;
+ min-width: 0;
+ flex-wrap: nowrap;
+}
+.toolbar-wrap.horizontal.dock-expanded .dock-stat.stacked {
+ flex: 1 1 calc(48px * var(--bar-scale, 1));
+ min-width: 0;
+}
+/* **SNAP and FREE take the toolbar's own button size** (2026-08-10, on
+ request: "SNAP and FREE should be the standard button size (like tool
+ bar)"). They are the two MODE switches in the editor — the two controls that
+ change what the next gesture will do — so they belong at the size of the
+ things that decide what a gesture does, not at the size of the ops beside
+ them. 44×40 is `.tool`, stated here rather than inherited because these are
+ `.btn`s on a different bar and dragging in the tool class would bring its
+ hover, active fill and label rules with it.
+
+ It also settles the snap button's own long-standing width problem for free.
+ The glyph is 1 char on two settings and 2 on the third (SNAP_GLYPH: '#',
+ '⇧#', '⊘'), so cycling the grid used to resize the whole dock — half of the
+ flashing-scrollbar bug. That was fixed by measuring the widest state (38.3 /
+ 46.9 / 44.2 px, so a fixed 48); a fixed 44 is simply the next number along
+ and reserves the same way. A `min-width` cannot do this job: it cannot hold
+ a width that varies ABOVE it. */
+.snap-btn, .free-world { width: calc(44px * var(--bar-scale, 1)); height: calc(40px * var(--bar-scale, 1)); padding: 0; justify-content: center; }
+/* …and the glyph in it is a toolbar glyph: 17px/800 is `.tool-label`. At
+ `.btn`'s 14px a one-character label floated in a 44px box looking like a
+ button that had lost something. The globe on Free World is the same idea
+ from the other side — `toolIconSVG`'s own 24 px default. */
+.snap-btn { font-size: calc(17px * var(--bar-scale, 1)); font-weight: 800; }
+/* The one width here NOT multiplied by the bar scale, on purpose: a range input
+ is drawn by the UA, so it takes `zoom` up with the SVGs — and a scaled width
+ under a zoom would come out scaled twice. */
+.dock-speed { width: 70px; flex-shrink: 0; }
+.dock-speed-label { min-width: calc(32px * var(--bar-scale, 1)); }
+/* 1× under the track, same as live under the scrubber (2026-08-25). */
+.adv-speed {
+ display: inline-flex;
+ flex-direction: column;
+ align-items: stretch;
+ justify-content: center;
+ gap: 1px;
+ flex-shrink: 0;
+}
+.adv-speed .dock-speed-label {
+ min-width: 0;
+ text-align: center;
+ line-height: 1;
+ font-size: max(var(--hud-type-min), calc(10px * var(--bar-scale, 1)));
+ padding: 0;
+}
+
+/* The dock is a COLUMN of rows now: the controls, then the scrub line under
+ them. Needed because a horizontal bar is `flex-direction: row`, so a second
+ row appended as a sibling just queued up to the right of the buttons. */
+.dock-stack, .adv-stack { display: flex; flex-direction: column; gap: calc(4px * var(--bar-scale, 1)); min-width: 0; }
+
+/* ---------- the Advanced bar (2026-08-09) ----------
+ A third bar, sharing all of `.toolbar-wrap`'s chrome, holding the controls
+ that are about STUDYING a machine rather than building or running one: the
+ grid latch, playback speed, the scrub line, the align/group ops, and Free
+ World. Everything on it moved here from the dock or the align chip.
+
+ Three tiers on a double-tap or Shift+A. TINY is `.minimized`, which every bar
+ already has, so only the counts block needs a rule of its own. */
+.adv-inner {
+ display: flex;
+ flex-direction: row;
+ align-items: center;
+ flex-shrink: 0;
+ min-height: 0;
+ gap: calc(6px * var(--bar-scale, 1));
+ /* 10 align cells + group + Free World + grid + the speed pair is ~470 at
+ rest; the cap clears it with room and, like the dock, this WRAPS rather
+ than scrolls so nothing can be hidden behind an edge. */
+ max-width: min(92vw, calc(620px * var(--bar-scale, 1)));
+ flex-wrap: wrap;
+ row-gap: calc(5px * var(--bar-scale, 1));
+ overflow: hidden;
+}
+.toolbar-wrap.vertical .adv-inner {
+ flex-direction: column; align-items: stretch;
+ min-width: 0; max-width: none;
+ max-height: min(600px, calc(100vh - 160px));
+ overflow-y: auto; overflow-x: hidden;
+}
+.adv-inner .btn { flex-shrink: 0; }
+/* **The align ops get a row of their own** (2026-08-09, on request). They were
+ queued beside the mode switches behind a divider, which put two unrelated
+ ideas on one strip of eleven small buttons: the switches change how the
+ EDITOR behaves, the ops act on a SELECTION. A row break says that better than
+ a rule did — and it stops the group wrapping down the middle of itself when
+ the bar is narrow. Ruled off above, so the two rows read as two things. */
+/* `nowrap`, and measured: the eleven ops come to 384.5px and the row above them
+ is 384.5px wide, so the stack sized itself to a dead tie and sub-pixel
+ rounding broke the group across THREE lines. That is the same
+ parked-on-its-own-threshold state the dock and the piece toolbar were both
+ rescued from. One line is also what "a second line on their own" asked for —
+ a group that wraps is back to being two things again — and the bar's cap
+ (700px) is nowhere near binding, so the row simply takes what it needs. */
+.adv-ops-row {
+ display: flex; align-items: center; gap: calc(3px * var(--bar-scale, 1)); flex-wrap: nowrap;
+ padding-top: calc(4px * var(--bar-scale, 1)); border-top: 1px solid var(--line);
+}
+.toolbar-wrap.vertical .adv-ops-row { flex-direction: column; align-items: stretch; }
+.adv-ops-row.hidden { display: none; }
+/* Disabled is DIM, not gone (see `_updateAlignChip`): on a bar you park once, a
+ control that moves house depending on the selection is worse than a dim one. */
+.adv-inner .btn:disabled, .adv-ops-row .btn:disabled { opacity: .35; cursor: default; }
+.adv-inner .btn:disabled:hover, .adv-ops-row .btn:disabled:hover { background: var(--paper); border-color: var(--line); color: inherit; }
+/* Free World is a MODE, and the one control here that changes what the game
+ will accept — so lit it wears the purple of the weave it puts on the level,
+ not the teal every other toggle uses. */
+/* **The icon carries the colour, and the button gets it from here.** The
+ strokes are `currentColor`, so off the globe inherits this accent and on it
+ inherits the white `.free-world.active` sets. An icon with the purple baked
+ into the SVG would go invisible against the purple fill, at exactly the
+ moment it is telling you the mode is live. (The size is up with `.snap-btn`
+ — the two mode switches share it.) */
+.free-world { min-width: 0; align-items: center; color: #7a4ae0; }
+/* The two toggles on this bar say ON the SAME way, which they did not.
+ `.btn.active` is a 2px accent OUTLINE — a ring drawn outside the border box,
+ so the snap button grew a blue edge while Free World beside it simply filled
+ in. One switched look for one bar; the outline is turned off rather than
+ left to sit under the fill. */
+.free-world.active, .snap-btn.active {
+ background: #7a4ae0; border-color: #7a4ae0; color: #fff; outline: none;
+}
+.free-world.active:hover, .snap-btn.active:hover { background: #6a3ad0; border-color: #6a3ad0; }
+
+/* ---------- GhostRun (2026-08-21) ----------
+ The bar's second MODE switch, **the same size as the first** (corrected the
+ day it shipped: it was built at half width, asked for that way, and half
+ width is where it broke — see below).
+
+ **`.btn.ghost-run`, not `.ghost-run`, and that is the whole bug.**
+ `.btn.tiny` a thousand lines up carries `padding: 4px 9px` at specificity
+ 0-2-0; a single-class rule saying `padding: 0` never had a chance against it.
+ `.snap-btn` and `.free-world` above have the same flaw and get away with it,
+ because 44px minus 18px of padding still leaves room for a 24px glyph. At 22
+ it does not: the content box came out 3.2px wide and flex crushed the ghost
+ to a 1.2px sliver — reported as "it has no icon", which it effectively had
+ not. Two classes here, later in the file, so the zero actually lands.
+
+ Its own colour, for the reason Free World has its own: two modes that say ON
+ the same way are two modes you have to read the icon to tell apart. This is
+ `COLORS.ghost`'s family (#9fb4c9, the ghost stick's cold blue-grey) taken
+ down far enough to be a button — so the switch, the ghosted machine and the
+ ring round a swept pin are all one colour, and none of them is the violet
+ that already means "build area" on this screen.
+
+ `currentColor` in the SVG is what makes the on-state work, exactly as it does
+ for the globe: off, the ghost inherits this accent; on, it inherits the white
+ below. An icon with the blue baked in would go invisible against the fill at
+ precisely the moment it is telling you the mode is live. */
+.btn.ghost-run {
+ width: calc(44px * var(--bar-scale, 1)); height: calc(40px * var(--bar-scale, 1));
+ padding: 0; min-width: 0; justify-content: center; align-items: center; color: #5b7d9e;
+}
+.btn.ghost-run.active { background: #5b7d9e; border-color: #5b7d9e; color: #fff; outline: none; }
+.btn.ghost-run.active:hover { background: #4b6b8c; border-color: #4b6b8c; }
+/* (`.ghost-run-label` lived here — the aim, and briefly a sweep's progress,
+ beside the switch. It is gone, and so is the paragraph that used to be here
+ explaining how to stop its several widths shifting the whole bar sideways:
+ the chip says all of it now, with room, and a bar that shows one fixed thing
+ cannot be made to shuffle. The `.waiting` state went with it — there is
+ nothing left to wait for, since the mode arms with no run at all.) */
+
+/* ---------- the sweep chip (2026-08-21) ----------
+ The pin sweep's field, as a relocatable tile — an ordinary `.toolbar-wrap`
+ bar, so it drags, folds and remembers where it was put like the other three.
+
+ A COLUMN whichever way the bar is turned: turning the bar sideways moves
+ the grip, not the picture. Width matches Play and Advanced; height is
+ the contents — short until a results matrix lands, then as tall as the
+ field wants. */
+.sweep-inner {
+ display: flex; flex-direction: column; align-items: center;
+ gap: calc(4px * var(--bar-scale, 1));
+ padding: calc(2px * var(--bar-scale, 1));
+}
+.toolbar-wrap.vertical .sweep-inner { flex-direction: column; }
+/* Tabular figures and a fixed line: the readout changes on every measured cell
+ while a sweep runs, and a chip that resized 1024 times would be a strobe.
+ `min-height` rather than `height` so a translation that wraps still fits. */
+.sweep-head {
+ display: flex; align-items: center; gap: calc(4px * var(--bar-scale, 1));
+ width: 100%; min-width: 0;
+}
+.sweep-head .sweep-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.btn.sweep-hide { flex: 0 0 auto; padding: 1px 6px; line-height: 1.2; color: var(--ink-soft); }
+.btn.sweep-hide.active { color: #5b7d9e; border-color: #5b7d9e; }
+.sweep-title, .sweep-read {
+ /* floored: 11 × 0.8 is 8.8px, under the 9.5px --hud-type-min whose own
+ comment says nothing in the HUD may go below it. The floor landed
+ 2026-08-23 (audit) — the token's sweep converted the 9/9.5/10px rules and
+ this 11px one fell outside the eyeball. The min-height is floored to the
+ same line box (9.5 × 1.25 = 11.875) or the fixed line stops being fixed
+ the moment the floor bites — and SWEEP_CHIP_CHROME budgets these rows, so
+ its number moves with this one (util.js: change one, change the other). */
+ font-size: max(var(--hud-type-min), calc(11px * var(--bar-scale, 1)));
+ font-weight: 600; color: var(--ink-soft);
+ font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center;
+ min-height: max(calc(var(--hud-type-min) * 1.25), calc(14px * var(--bar-scale, 1)));
+ line-height: 1.25;
+}
+.sweep-read { color: var(--ink); }
+/* The odds ride under the readout in the dimmer ink the titles use: the cell's
+ number is the answer, and what it would have cost to find is a footnote on
+ it. Same class otherwise, so it costs the chip exactly one `.sweep-read`
+ (util.js `SWEEP_CHIP_CHROME` counts it). */
+.sweep-odds { color: var(--ink-soft); font-weight: 500; }
+/* `image-rendering: pixelated` — the cells ARE the data. Smoothing a 32×32
+ field up to 128 px would invent gradients between measurements that have
+ nothing between them, which on a boundary this broken is not a prettier
+ picture, it is a wrong one. */
+.sweep-canvas {
+ display: block; border-radius: 6px; border: 1px solid var(--line);
+ image-rendering: pixelated; cursor: crosshair;
+}
+.btn.sweep-close { padding: 1px 8px; line-height: 1.2; color: var(--ink-soft); }
+.btn.sweep-finer { padding: 1px 8px; line-height: 1.2; color: #5b7d9e; border-color: #5b7d9e; }
+.btn.sweep-finer:hover { background: #5b7d9e; color: #fff; }
+.sweep-row { display: flex; gap: calc(4px * var(--bar-scale, 1)); align-items: center; }
+.sweep-row.hidden, .sweep-scale.hidden, .sweep-canvas.hidden, .sweep-rung.hidden, .sweep-read.hidden { display: none; }
+
+/* THE DIAL. Its own width, not the graph's: the chip is as wide as whatever
+ field it is showing (147px at the floor, 378 on a wide screen), and a slider
+ stretched to the full width of a big field would be a control the size of a
+ window. `width` rather than a stretch, for the reason `.dock-speed` states —
+ a range input is drawn by the UA and takes `zoom` up with it, so a scaled
+ width under a zoom comes out scaled twice. */
+/* Full width of the chip, which `_sizeSweepChip` pins to the GRAPH's width — so
+ the dial is as wide as the field will be and nothing shifts when the field
+ arrives. `width: 100%` rather than a scaled calc, for the reason
+ `.dock-speed` states: a range input is drawn by the UA and takes `zoom` up
+ with it, so a scaled width under a zoom comes out scaled twice. */
+.ghost-aim { width: 100%; flex-shrink: 0; margin: 0; }
+/* WHAT it is judging by, and by how much. The judge line is the quieter of the
+ two — it is a label — and the verdict carries the numbers. */
+.ghost-judge { color: var(--ink-soft); font-weight: 600; }
+.ghost-verdict { font-weight: 700; }
+/* THE SCALE. The field's colours are RELATIVE — brightest is the best cell
+ measured, not a fixed number of pixels — so without the two ends they run
+ between, "greener" says better and never says by how much. The ramp is the
+ same green at the same two alphas `drawSweepField` paints with, over the
+ chip's own paper, so the strip and the picture cannot drift apart. */
+.sweep-scale {
+ display: flex; align-items: center; gap: calc(4px * var(--bar-scale, 1));
+ font-size: max(var(--hud-type-min), calc(10px * var(--bar-scale, 1))); font-variant-numeric: tabular-nums;
+ color: var(--ink-soft); width: 100%;
+ /* Room for the origin's tick, which is positioned out of the flow above the
+ ramp and would otherwise sit on top of the canvas. Same twelve px
+ `SWEEP_CHIP_CHROME` reserves — change one, change the other. */
+ margin-top: calc(12px * var(--bar-scale, 1));
+}
+.sweep-ramp {
+ flex: 1 1 auto; height: calc(8px * var(--bar-scale, 1)); border-radius: 3px;
+ border: 1px solid var(--line); position: relative;
+ background: linear-gradient(to right,
+ rgba(19,166,92,0.94), rgba(19,166,92,0.16) var(--sweep-mid, 50%),
+ rgba(226,52,52,0.16) var(--sweep-mid, 50%), rgba(226,52,52,0.94)), var(--paper-dim);
+}
+.sweep-scale-end { flex: 0 0 auto; }
+/* WHERE YOU ARE STANDING. Green and red are both measured from the machine you
+ already have, so the origin is the zero of the strip and not an end of it —
+ a tick at the same fraction `drawSweepField` grades from, carrying its own
+ number so the two extremes are not the only things the scale names. The
+ number rides above the strip because the strip is 8 px tall and a label
+ inside it would have to shrink below reading size.
+
+ THE TICK IS THE RAMP'S, NOT THE LABEL'S. They mark the same fraction but they
+ cannot move together: `--sweep-mid` is 0% on any sweep where nothing beat the
+ machine you already have — which is most of them, and ALL of them once it
+ delivers — and a label centred on 0% hangs half its width off the left end,
+ over the number sitting there. So the tick stays put and only the label is
+ allowed to slide off the centre (`--sweep-home-shift`). */
+.sweep-ramp::after {
+ content: ''; position: absolute; left: var(--sweep-mid, 50%);
+ top: -3px; bottom: -3px; width: 1px;
+ background: var(--ink-soft); opacity: 0.55;
+}
+.sweep-scale.flat .sweep-ramp::after,
+.sweep-win-scale .sweep-ramp::after { display: none; }
+.sweep-scale-home {
+ position: absolute; left: var(--sweep-mid, 50%); bottom: calc(100% + 3px);
+ transform: translateX(var(--sweep-home-shift, -50%));
+ white-space: nowrap; line-height: 1;
+ color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.sweep-scale-home:empty { display: none; }
+/* Nothing beat the machine you already have: no gradient to read, so no
+ gradient is drawn — the strip goes flat and the line says the one number. */
+.sweep-scale.flat .sweep-ramp { background: var(--paper-dim); }
+/* The winners' own scale. Green grades on DISTANCE and every winner has reduced
+ that to nothing, so gold grades them on what still separates them: speed. The
+ ramp is the same two golds `drawSweepField` interpolates between, opaque for
+ the reason it is there — a pale gold over a pale green would sit between the
+ two families and belong to neither. */
+/* **`to right`, since 2026-08-22 — it ran backwards.** The two golds were the
+ field's own, and in the wrong order: `to left` puts the first stop at the
+ RIGHT edge, so the deep gold sat over the SLOW label while the field paints
+ its fastest delivery deepest. The strip said the pale cells were the quick
+ ones. Left is the fast end because the fast label is the left one. */
+.sweep-win-scale .sweep-ramp { background: linear-gradient(to right, rgb(176,124,8), rgb(245,215,130)); }
+/* The winners' row carries no origin tick — nothing is measured from the
+ machine you already have here, only from the fastest delivery — so it does
+ not want the twelve px the distance scale reserves for one. */
+.sweep-win-scale { margin-top: 0; }
+.sweep-win-scale.hidden { display: none; }
+
+/* The census (FULL). A stack of labelled lines, tabular so the numbers sit in
+ columns as they change — this updates on every edit. */
+.adv-counts { display: flex; flex-direction: column; gap: calc(2px * var(--bar-scale, 1)); padding: calc(2px * var(--bar-scale, 1)) calc(2px * var(--bar-scale, 1)) 0; border-top: 1px solid var(--line); }
+.adv-counts.hidden { display: none; }
+/* floored like .sweep-title above — the same 11 × 0.8 = 8.8px miss, and
+ .adv-sub under it is the densest text in the bar */
+.adv-line { display: flex; align-items: baseline; gap: calc(6px * var(--bar-scale, 1)); flex-wrap: wrap; font-size: max(var(--hud-type-min), calc(11px * var(--bar-scale, 1))); }
+.adv-key { min-width: calc(44px * var(--bar-scale, 1)); font-weight: 700; color: var(--ink-soft); }
+.adv-n { font-variant-numeric: tabular-nums; }
+.adv-tot { font-weight: 800; font-size: calc(13px * var(--bar-scale, 1)); color: var(--ink); min-width: calc(18px * var(--bar-scale, 1)); }
+.adv-sub { font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; }
+.adv-sub.adv-zero { opacity: .4; }
+
+/* The scrub line (§7.4) — a run's timeline, floating clear of the play dock.
+ Full width of the bar, so the slider is worth dragging.
+
+ **Out of the bar's flow, deliberately.** The dock auto-places off its own
+ height, so a row that grew it would shove the whole bar — and the play button
+ with it — upward at the moment of appearing, which is precisely when a hand
+ is on its way there. Absolute keeps the bar's box identical whether the line
+ is showing or not, which is also what stops the hover zone measured off that
+ box from flickering on its own edge.
+
+ **It hangs off one of the bar's FOUR sides**, and which one is measured
+ (`scrubZone` in util.js) rather than fixed: `above`/`below` for a horizontal
+ bar — the desktop dock sits on the bottom edge of the canvas with nothing
+ under it, a phone's starts at the top with nothing over it — and
+ `left`/`right` for a VERTICAL one, where the timeline turns on its side and
+ runs alongside the column.
+
+ That vertical pair is a fix as much as a shape. A horizontal row on a
+ one-button-wide column has to overhang it by 200 px, and with the bar parked
+ on the right edge every one of those pixels was off screen. Alongside, it is
+ 26 px wide and cannot overhang at all.
+
+ The 26 px thickness and 6 px gap are the same two numbers
+ `SCRUB_ROW_H`/`SCRUB_ROW_GAP` hold — the rule needs them before the row has
+ a box to measure. */
+.dock-scrub-row {
+ position: absolute;
+ box-sizing: border-box;
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-radius: 10px;
+ box-shadow: var(--shadow);
+}
+/* the horizontal pair: the bar's full width, above it or below it */
+.dock-scrub-row.above,
+.dock-scrub-row.below {
+ left: 0; right: 0;
+ height: 26px;
+ min-width: 260px;
+ padding: 0 8px;
+}
+.dock-scrub-row.above { bottom: calc(100% + 6px); }
+.dock-scrub-row.below { top: calc(100% + 6px); }
+/* the vertical pair: the bar's full height, beside it. `min-height` is the
+ same idea as the horizontal `min-width` and never bites in practice — a
+ vertical dock is six buttons tall before it is anything else. */
+.dock-scrub-row.left,
+.dock-scrub-row.right {
+ top: 0; bottom: 0;
+ width: 26px;
+ min-height: 200px;
+ padding: 8px 0;
+ flex-direction: column;
+}
+.dock-scrub-row.left { right: calc(100% + 6px); }
+.dock-scrub-row.right { left: calc(100% + 6px); }
+/* A folded bar is its handle and nothing else, and the timeline folds with it:
+ `.toolbar-wrap.minimized > :not(.toolbar-header)` above already covers this
+ row, since it is a direct child of the wrap. */
+.dock-scrub { flex: 1 1 auto; min-width: 120px; accent-color: var(--teal); }
+.scrub-time { min-width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+/* Sideways, both of them. `writing-mode` rather than a `rotate()`: a rotated
+ slider still LAYS OUT horizontally, so the row would be 260 px wide and only
+ look 26, which is the whole bug this shape exists to avoid — and a rotated
+ element's hit area follows the transform in ways a drag has to fight. The
+ readout turns with it (asked for as "live/time sideways"), and keeps its
+ tabular figures so the number does not jiggle as it counts. */
+.dock-scrub-row.left .dock-scrub,
+.dock-scrub-row.right .dock-scrub {
+ writing-mode: vertical-lr;
+ width: auto;
+ min-width: 0;
+ min-height: 120px;
+}
+.dock-scrub-row.left .scrub-time,
+.dock-scrub-row.right .scrub-time {
+ writing-mode: vertical-rl;
+ min-width: 0;
+ min-height: 46px;
+ text-align: right;
+}
+/* while scrubbed the readout is the one thing that is not "now", so it says so
+ in the accent rather than in the muted grey every other stat wears */
+.dock-scrub-row.scrubbed .scrub-time { color: var(--teal); font-weight: 700; }
+/* (`.scrub-live` was the ⇥ "back to the end" button, dropped 2026-08-10 —
+ dragging the slider's own right-hand end is the shorter gesture and a much
+ bigger target.) */
+
+/* touch-action: none is what lets a finger DRAG the chip at all — without it
+ the browser reads the gesture as a scroll, cancels the pointer, and the
+ old handler leaked its listeners (see _bindGripDrag). The bar grips have
+ carried it from the start; the chip grip was the one that hadn't. */
+.chip-grip { cursor: grab; color: var(--ink-soft); padding: 4px 2px; letter-spacing: -2px; touch-action: none; }
+.chip-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 2px 0; width: 100%; }
+.chip-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); min-width: 52px; }
+.chip-note { font-size: 12px; color: var(--ink-soft); }
+.chip-input { width: 58px; font-size: 12px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.chip-slider { width: 90px; }
+.swatch {
+ width: 20px; height: 20px;
+ border-radius: 6px;
+ border: 1px solid var(--line);
+ cursor: pointer;
+ padding: 0;
+}
+.swatch.wide { width: 34px; }
+.swatch.active { outline: 2px solid var(--teal); }
+
+/* ONE LINE. It is a toolbar, and a toolbar that reflows to two rows every
+ time the Group button appears moves every other button under the cursor —
+ the ops are picked by position, so the row has to stay put. `nowrap` alone
+ would let it run off a narrow screen (it is pinned to the right edge and
+ the full set is ~550 px), so it is bounded by its pane and scrolls
+ horizontally in the case that cannot fit rather than growing a second row. */
+.align-chip {
+ right: 12px;
+ bottom: 14px;
+ display: flex;
+ align-items: center;
+ gap: 5px;
+ flex-wrap: nowrap;
+ max-width: calc(100% - 24px);
+ overflow-x: auto;
+ scrollbar-width: thin;
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-radius: 12px;
+ padding: 7px 10px;
+ box-shadow: var(--shadow);
+}
+/* nothing in the row may be squeezed thinner than its content: flex items
+ default to shrinking, which would turn the glyph buttons into slivers
+ before the scroll ever engaged */
+.align-chip > * { flex: 0 0 auto; }
+.align-chip .chip-label { min-width: 0; white-space: nowrap; }
+.info-chip {
+ left: 12px;
+ bottom: 14px;
+ display: flex;
+ align-items: center;
+ gap: 4px;
+ font-size: 12px;
+ font-weight: 600;
+ color: var(--ink-soft);
+ background: var(--plate);
+ border-radius: 8px;
+ padding: 4px 10px;
+ min-height: 14px;
+ pointer-events: none; /* click-through, except its own grip below */
+}
+/* …and the fps figure, which carries the perf report as its tooltip
+ (2026-08-18): the chip is click-through so the canvas under it stays
+ usable, and a span the pointer cannot reach cannot show a tip. */
+.info-chip .chip-grip, .info-chip .chip-fps { pointer-events: auto; }
+/* The frame rate leads the chip and must not move the rest of it: tabular
+ digits and a reserved width, so 9 → 60 → 144 fps does not shove the piece
+ description sideways twice a second. Quieter than the text beside it — it is
+ the room's temperature, not what you are looking at. */
+.chip-fps {
+ flex: 0 0 auto;
+ min-width: 48px;
+ font-variant-numeric: tabular-nums;
+ font-weight: 700;
+ opacity: .62;
+}
+/* An empty description leaves no trailing gap — the chip is often just the FPS */
+.info-chip > span:last-child:empty { display: none; }
+
+.bind-chip {
+ left: 58px;
+ top: 56px;
+ display: flex;
+ flex-direction: column;
+ align-items: stretch;
+ gap: 3px;
+ position: absolute;
+ min-width: 168px;
+ max-width: min(280px, calc(100% - 24px));
+ padding: 5px 10px 6px 8px;
+ border: 1px solid var(--plate-edge, var(--line));
+ border-radius: 10px;
+ background: var(--plate);
+ box-shadow: var(--shadow);
+ pointer-events: none;
+ font: 600 max(var(--hud-type-min), calc(12px * var(--bar-scale, 1))) var(--font);
+ color: var(--ink-soft);
+}
+.bind-chip .chip-grip {
+ pointer-events: auto;
+ position: absolute;
+ left: 4px;
+ top: 4px;
+ padding: 2px 2px;
+}
+.bind-chip-head {
+ font-weight: 700;
+ color: var(--ink);
+ padding-left: 14px;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+}
+.bind-chip-rows { display: grid; gap: 2px; }
+.bind-chip-row {
+ display: flex;
+ align-items: baseline;
+ gap: 7px;
+ min-width: 0;
+}
+.bind-chip-key {
+ flex: 0 0 1.6em;
+ text-align: center;
+ font: 700 max(var(--hud-type-min), calc(11px * var(--bar-scale, 1))) var(--font);
+ background: var(--paper-dim);
+ border: 1px solid var(--line);
+ border-bottom-width: 2px;
+ border-radius: 6px;
+ padding: 0 3px;
+ color: var(--ink);
+}
+.bind-chip-arrows, .bind-chip-mouse {
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ padding: 1px 2px;
+ line-height: 0;
+}
+.bind-chip-arrows svg, .bind-chip-mouse svg { display: block; }
+.bind-chip-act {
+ min-width: 0;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+}
+.bind-chip-note {
+ font-weight: 500;
+ font-size: 11px;
+ opacity: .75;
+ padding-left: 14px;
+ line-height: 1.25;
+}
+
+/* The right-hand HUD column (§11.8). The win banner used to own this corner
+ outright; the challenge chip wants the same one, and two absolutely
+ positioned panels claiming `top: 56px; right: 14px` is one of them landing on
+ the other. They stack here instead — the column is the only thing positioned,
+ and both are ordinary flow children of it, so a hidden banner
+ (`display: none`) costs nothing and a shown one simply pushes the chip down.
+ Click-through except on the panels themselves: the gap between them is level,
+ and the level is what you are pointing at. */
+.hud-right {
+ /* 56px, which is exactly where the win banner used to place itself — the
+ column moved, and nothing about where the banner lands did. */
+ top: 56px; right: 14px;
+ display: flex;
+ flex-direction: column;
+ align-items: flex-end;
+ gap: 8px;
+ max-width: calc(100% - 28px);
+ pointer-events: none;
+}
+.hud-right > * { pointer-events: auto; }
+
+.win-banner {
+ width: 250px;
+ background: var(--plate);
+ border: 2px solid var(--gold);
+ border-radius: 14px;
+ padding: 12px 14px;
+ box-shadow: var(--shadow);
+}
+
+/* The challenge chip ON the level (§11.8) — what the Workshop card wears, moved
+ to where the level is, for everybody who did not arrive through the Workshop.
+ Sized to the win banner it stacks with so the column reads as one edge. */
+.chal-hud {
+ width: 250px;
+ max-width: 100%;
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-left: 3px solid var(--teal);
+ border-radius: 12px;
+ box-shadow: var(--shadow);
+ font-size: 12px;
+}
+.chal-hud-head {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ padding: 6px 8px 6px 10px;
+}
+.chal-hud-title {
+ flex: 1 1 auto;
+ min-width: 0;
+ font-weight: 800;
+ font-size: 12px;
+ color: var(--ink-soft);
+ white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* the standing-in-for-everything line while minimised: icon, how many, one
+ clock. Hidden while open, because the clock is already in the row below. */
+.chal-hud-badge { display: none; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+.chal-hud-badge b { font-weight: 700; }
+.chal-hud-n {
+ font-weight: 800;
+ background: var(--teal-soft);
+ border-radius: 999px;
+ padding: 0 5px;
+}
+/* – / +, and deliberately not an ✕: the countdown is live information, so the
+ control that gets it out of the way has to be the one that brings it back. */
+.chal-hud-toggle {
+ flex: 0 0 auto;
+ font-size: 15px; font-weight: 800; line-height: 1;
+ padding: 2px 7px;
+ min-width: 24px;
+}
+.chal-hud-rows { padding: 0 10px 8px; }
+.chal-hud-terms { font-weight: 700; margin-top: 2px; }
+.chal-hud-by { font-size: 11px; margin-top: 2px; }
+.chal-hud .chal-one + .chal-one { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+/* Minimised: one line, and the head becomes the way back open. */
+.chal-hud.mini { width: auto; }
+.chal-hud.mini .chal-hud-head { cursor: pointer; padding: 4px 6px 4px 9px; }
+.chal-hud.mini:hover { background: var(--paper); }
+.chal-hud.mini .chal-hud-title, .chal-hud.mini .chal-hud-rows { display: none; }
+.chal-hud.mini .chal-hud-badge { display: inline-flex; }
+/* The scenery-edit banner (§10.5): centred, persistent, and a BUTTON — the
+ sign that says which layer you are in is also the way out of it. */
+.back-banner {
+ top: 12px; left: 50%; transform: translateX(-50%);
+ background: rgba(43, 38, 66, .92);
+ color: #fff;
+ border: 1px solid rgba(255,255,255,.25);
+ border-radius: 999px;
+ padding: 7px 16px;
+ font-size: 13px;
+ font-weight: 600;
+ cursor: pointer;
+ box-shadow: var(--shadow);
+}
+.back-banner:hover { background: rgba(43, 38, 66, 1); }
+/* ⏺ in the dock (§11.11) — beside the big ▶, the height of its neighbours and
+ half their width (same vertical padding, horizontal squeezed), red only in
+ the dot so it reads as "a record button" and not as a danger button. While
+ rolling the dot pulses and the button tints: that IS the recording light —
+ a REC banner mid-screen said the same thing louder, over the run it was
+ supposed to be filming. */
+.rec-dot {
+ width: calc(9px * var(--bar-scale, 1)); height: calc(9px * var(--bar-scale, 1)); border-radius: 50%;
+ background: #e23434;
+ display: inline-block;
+}
+/* gap: 0 — the base .btn's 6px gap sat BETWEEN the dot and the zero-width
+ height sizer, which is a real flex item, so the centred pair put the dot
+ 3px left of centre. With no gap the sizer takes no room and the dot lands
+ dead centre. */
+.rec-btn { display: inline-flex; align-items: center; justify-content: center; padding: calc(8px * var(--bar-scale, 1)) calc(5px * var(--bar-scale, 1)); gap: 0; }
+/* a 9px dot makes a shorter line-box than the glyph buttons beside it, and a
+ zero-width space still fell 1px short: the neighbours' arrows come out of a
+ SYMBOL font whose metrics run taller than the text font's. So the sizer is
+ one of their own glyphs, clipped to zero width — same fallback font, same
+ line box, exactly their height, and never a named pixel that could drift */
+.rec-btn::after { content: '↺'; display: inline-block; width: 0; overflow: hidden; }
+.rec-btn.recording { background: #fde4e4; }
+.rec-btn.recording .rec-dot { animation: rec-pulse 1.2s ease-in-out infinite; }
+@keyframes rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.win-title { font-weight: 800; font-size: 17px; }
+.win-stats { font-size: 13px; color: var(--ink-soft); margin: 4px 0 6px; }
+/* The full set has to read as ONE row — a wrapped badge looks like an
+ afterthought rather than part of the haul. Eight 26 px badges don't fit the
+ 250 px banner, so they lose 2 px each here (still bigger than the 21 px
+ `tiny` used on cards). Wrap stays on as the safe failure mode if the set
+ ever outgrows even this. */
+.win-badges { display: flex; flex-wrap: nowrap; margin-bottom: 8px; }
+.win-badges .badge { width: 24px; height: 24px; margin-right: 2px; }
+.win-note { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; }
+.win-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Nailed It fuse: a burning rope shrinking over the 5s grace window,
+ ending at a dimmed target that _renderWinBanner lights up (or doesn't)
+ once grace resolves and the real badge row replaces this whole banner. */
+.fuse-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
+.fuse-track {
+ position: relative;
+ flex: 1;
+ height: 7px;
+ background: rgba(35,42,53,.1);
+ border-radius: 4px;
+ overflow: visible;
+}
+.fuse-remaining {
+ position: absolute;
+ left: 0; top: 0; bottom: 0;
+ width: 100%;
+ background: linear-gradient(90deg, #a87b4f, #7d5a38);
+ border-radius: 4px;
+}
+.fuse-spark {
+ position: absolute;
+ right: -9px; top: 50%;
+ transform: translate(50%, -50%);
+ font-size: 14px;
+ filter: drop-shadow(0 0 3px rgba(255,140,0,.85));
+}
+.fuse-target { font-size: 15px; opacity: .5; }
+.fuse-label { font-size: 11px; color: var(--ink-soft); margin-bottom: 8px; }
+
+/* `.replay-bar` lived here — the "Watching X's solve · ⤓ Load · ✕ Stop
+ watching" strip that a replay MODE needed to be escapable from. There is no
+ mode now: a solve is loaded as the player's own machine and the preroll card
+ is the credit, so there is nothing to leave and no bar to leave it with. */
+
+/* The replay title card (§11.3) — who made this and what it did, held for a
+ beat before the machine moves. Centred over the level rather than tucked in a
+ corner, because for those three seconds it IS the screen: nothing else is
+ happening yet, and a card you have to find is a card nobody reads.
+
+ The same ink-and-white inversion as the tooltip and the challenge message, so
+ the surfaces that speak FOR a person all read as one voice. Clickable in full
+ (it skips), so it is sized to be hit rather than aimed at. */
+.replay-preroll {
+ top: 50%; left: 50%;
+ transform: translate(-50%, -50%);
+ z-index: 13;
+ min-width: 220px;
+ max-width: min(420px, calc(100% - 32px));
+ text-align: center;
+ background: rgba(35,42,53,.94);
+ color: #fff;
+ border-radius: 16px;
+ padding: 18px 26px 15px;
+ box-shadow: var(--shadow);
+ cursor: pointer;
+ animation: preroll-in .22s ease-out;
+}
+@keyframes preroll-in {
+ from { opacity: 0; transform: translate(-50%, -46%); }
+ to { opacity: 1; transform: translate(-50%, -50%); }
+}
+/* the NAME is the point of the card — everything else is detail under it */
+.preroll-who { font-size: 24px; font-weight: 800; line-height: 1.15; }
+/* the remix byline — under the name, quieter than it, the word cover versions
+ use. The name it credits is part of the card's point, not a footnote. */
+.preroll-after { font-size: 13px; font-style: italic; margin-top: 1px; opacity: .75; }
+.preroll-what { font-size: 15px; margin-top: 3px; opacity: .92; font-variant-numeric: tabular-nums; }
+.preroll-title { font-size: 14px; font-style: italic; margin-top: 6px; opacity: .85; overflow-wrap: anywhere; }
+/* Earned badges only, centred as a real row. The badges' own stagger margin
+ (2px 3px 0 0 — right for a wrapping table row) is what made a lone centred
+ line sit ragged, so it is zeroed here and the gap does the spacing. */
+.preroll-badges { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
+.preroll-badges .badge { margin: 0; }
+/* what they said about the run, in the reversed-out bubble's opposite: the card
+ is already ink, so the quote goes light-on-dark like the rest of it and earns
+ its separation from a rule above instead */
+.preroll-said {
+ font-size: 13px; font-style: italic;
+ margin-top: 9px; padding-top: 9px;
+ border-top: 1px solid rgba(255,255,255,.18);
+ opacity: .9; overflow-wrap: anywhere;
+}
+.preroll-when { font-size: 11px; margin-top: 9px; color: rgba(255,255,255,.6); }
+
+.toast {
+ position: absolute;
+ left: 50%;
+ bottom: 74px;
+ transform: translateX(-50%);
+ z-index: 30;
+ background: rgba(35,42,53,.94);
+ color: #fff;
+ font-size: 13px;
+ padding: 9px 16px;
+ border-radius: 10px;
+ max-width: 420px;
+ text-align: center;
+ transition: opacity 0.2s;
+}
+.toast.hidden { opacity: 0; pointer-events: none; }
+.hidden { display: none !important; }
+.toast.hidden { display: block !important; }
+
+.ctx-menu {
+ position: absolute;
+ z-index: 50;
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: 10px;
+ box-shadow: var(--shadow);
+ padding: 5px;
+ min-width: 150px;
+ display: flex;
+ flex-direction: column;
+ gap: 2px;
+ max-height: min(78vh, 640px);
+ overflow-y: auto;
+}
+.ctx-item {
+ font: inherit;
+ font-size: 13px;
+ text-align: left;
+ background: transparent;
+ border: 0;
+ border-radius: 7px;
+ padding: 7px 10px;
+ cursor: pointer;
+}
+.ctx-item-flag { display: flex; align-items: center; gap: 8px; }
+.lang-flag {
+ display: block;
+ line-height: 0;
+ overflow: hidden;
+ border-radius: 2px;
+ border: 1px solid rgba(35, 42, 53, .42);
+ box-shadow: inset 0 0 0 1px rgba(35, 42, 53, .18);
+ flex: 0 0 auto;
+}
+.lang-flag svg { display: block; width: 100%; height: 100%; }
+.ctx-item-flag .lang-flag { width: 18px; height: 12px; }
+.ctx-item:hover { background: var(--teal-soft); }
+.ctx-item.danger { color: var(--danger); }
+/* Overlap picker: gold is "this one" while the row is hovered, matching the
+ gold bloom drawn on the piece itself. Beats the menu's teal hover. */
+.pick-chip { min-width: 160px; }
+.pick-chip .ctx-item:hover,
+.pick-chip .ctx-item:focus-visible {
+ background: color-mix(in srgb, #ffd76a 42%, var(--paper));
+}
+.pick-chip .ctx-item.active {
+ background: color-mix(in srgb, #ffd76a 22%, var(--paper));
+}
+/* SELECTION verbs rather than piece ones — they sit above the per-piece rows
+ and are ruled off from them, so the menu reads as "these, then this one".
+ Group and Ungroup are the two directions of ONE decision, so they share a
+ line when both apply. The children keep .ctx-item, so the type, size, radius
+ and hover are the menu's own and the pair cannot drift from the rows below
+ it; the row only lays them out and splits the width. Centred only when there
+ are two of them — a lone item keeps the menu's left-aligned rhythm. */
+.ctx-row { display: flex; gap: 4px; }
+.ctx-row .ctx-item { flex: 1 1 0; min-width: 0; }
+.ctx-row .ctx-item:not(:only-child) { text-align: center; }
+.ctx-row.ctx-strong,
+.ctx-item.ctx-strong { border-bottom: 1px solid var(--line); }
+.ctx-row.ctx-strong .ctx-item,
+.ctx-item.ctx-strong { font-weight: 700; }
+.ctx-item.active { background: var(--teal-soft); }
+.ctx-title { font-size: 11px; font-weight: 700; color: var(--ink-soft); padding: 4px 10px 2px; }
+.ctx-swatches { display: flex; gap: 5px; padding: 4px 10px 6px; flex-wrap: wrap; }
+/* a stack of rows inside a menu: a toggle, the dial it reveals, and a note
+ about what it does to the rest of the level (the planet panel, §5.10) */
+.chip-col { display: flex; flex-direction: column; gap: 2px; padding: 2px 10px 4px; }
+.chip-col .ctx-item { padding-left: 0; padding-right: 0; }
+.ctx-note { font-size: 11px; color: var(--ink-soft); line-height: 1.35; max-width: 230px; }
+
+/* terrain texture + surface panel. The terrain menu is the tallest one in the
+ app (panel + chamfer + z-order + path controls), so this is where the menu
+ gets its scroll ceiling.
+
+ **Eight to a line, at the menu's own button size** (2026-08-08, on request).
+ Sixteen 44px squares in four rows were a second grid and a second button
+ size inside a menu made of 37×26 tool cells, and they set the menu's whole
+ width. `1fr` columns take the width the menu already has rather than
+ dictating it — the same lattice `.ctx-bg` rides, for the same reason: two
+ grids in one box must read as one menu.
+
+ …and as of 2026-08-09 that lattice is a FIXED cell, `--ctx-cell`, not a
+ fraction of whatever width the menu happened to have — "Make Texture …
+ the small size too". Eight of them is 8 × 26 + 7 × 3 = 229, which is now
+ among the things that decide how wide the menu is rather than a passenger
+ of it. */
+.tex-panel { display: flex; flex-direction: column; }
+.tex-grid { display: grid; grid-template-columns: repeat(8, var(--ctx-cell)); gap: 3px; padding: 2px 10px 6px; }
+.tex-swatch {
+ height: var(--ctx-cell);
+ padding: 0;
+ border: 1px solid var(--line);
+ border-radius: 6px;
+ background-size: cover;
+ background-position: center;
+ cursor: pointer;
+}
+.tex-swatch:hover { border-color: var(--teal); }
+.tex-swatch.active { outline: 2px solid var(--teal); outline-offset: 1px; border-color: var(--teal); }
+.tex-head { display: flex; justify-content: space-between; align-items: baseline; }
+.tex-reset {
+ font: inherit; font-size: 10px; font-weight: 600;
+ background: transparent; border: 0; padding: 0;
+ color: var(--teal); cursor: pointer;
+}
+.tex-reset:hover { text-decoration: underline; }
+/* **ONE dial row, for every dial on every piece** (renamed from `.tex-row` on
+ 2026-08-09, on request: "Match the Density/Chamfer to style of each others").
+
+ It began as the texture panel's own row and then spread, which is how the
+ mismatch happened: Chamfer moved onto it, while Density stayed a `.chip-row`
+ — 12px/700 label in a 52px column against 11px/600 in a 46px one. Two rows
+ doing the same job in one menu, half a millimetre apart. Everything that is
+ "a named dial, its control, and its value" now lands here — Grip, Bounce,
+ Belt, Chamfer, Density on a prop, a goal crate and a stick, and a
+ planet's Pull — so the name no longer says `tex`.
+
+ 46px, because "Chamfer" is the longest of the labels (measured at 42.4px) and
+ the column is SHARED: widening it moves every row's control together, which
+ is the whole reason the column is fixed. */
+.dial-row {
+ display: grid;
+ grid-template-columns: 46px 1fr 50px;
+ align-items: center;
+ gap: 6px;
+ padding: 1px 10px;
+ font-size: 11px;
+ cursor: pointer;
+}
+/* Chamfer has no value column, so its cells take the rest of the row rather
+ than reserving 50px of nothing on the right. */
+.dial-row.corner-row { grid-template-columns: 46px 1fr; padding-top: 3px; padding-bottom: 3px; }
+.dial-row input[type=range] { width: 100%; margin: 0; accent-color: var(--teal); }
+.dial-name { color: var(--ink-soft); font-weight: 600; }
+/* **A row's label is its slider's second handle** (2026-08-09): double-click it
+ to swap between the slider and the typed box. `user-select: none` because a
+ double-click's other job is selecting a word, and leaving "Density"
+ highlighted behind the box it just opened reads as a mis-click. */
+.dial-name, .ctx-line-label, .ctx-slider > span:first-child {
+ cursor: pointer;
+ user-select: none;
+ -webkit-user-select: none;
+}
+.dial-val { text-align: right; font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* mini toolbar at the top of the context menu — the piece toolbar at 18 px.
+
+ **One cell size for the whole menu, and it is the PLAYER's** (2026-08-09, on
+ request: "Make all icon buttons on right click menu the same size. The same
+ as the little size on the mini toolbar for player").
+
+ The grid's columns used to be `1fr`, so the cell was whatever the menu's
+ widest TEXT row happened to leave it: 26×26 in a player's menu (245px wide)
+ and 37×26 in Create's, where one long row — "Add pin here (Alt+click…)" —
+ set the width for everything. Two sizes of the same button, decided by a
+ sentence somewhere else in the menu.
+
+ 26px is the honest number: an 18px icon plus 3px of padding and a 1px border
+ on each side, which is what the cell measures when nothing stretches it. Now
+ it is stated once here and every icon control in the menu reads it, so the
+ grid can no longer be pushed about by its neighbours — and the menu narrows
+ to fit its content instead of the other way round. */
+.ctx-menu { --ctx-cell: 26px; }
+.ctx-tools {
+ display: grid;
+ grid-template-columns: repeat(var(--ctx-cols, 7), var(--ctx-cell));
+ gap: 3px;
+ padding: 2px 2px 5px;
+ border-bottom: 1px solid var(--line);
+ margin-bottom: 3px;
+}
+/* the divider exists to separate the grid from the rows BELOW it — a menu
+ that ends at the grid (empty canvas in Test) was drawing an underline
+ under nothing */
+.ctx-tools:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 2px; }
+.ctx-tool {
+ display: flex; align-items: center; justify-content: center;
+ box-sizing: border-box;
+ width: var(--ctx-cell); height: var(--ctx-cell);
+ padding: 3px;
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: 6px;
+ cursor: pointer;
+}
+.ctx-tool:hover { background: var(--teal-soft); }
+/* `color` as well as the background (2026-08-12): every glyph on this cell used
+ to be `toolIconSVG` artwork with its colours baked in, so an active cell only
+ ever had to change what was BEHIND them. The grip menu's mode icons are the
+ first `currentColor` glyphs here, and without this they stayed dark ink on
+ the teal — the same white `.corner-btn.active` and `.tool.active` already
+ set, arriving late because nothing had needed it. */
+.ctx-tool.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+.ctx-tool svg { display: block; }
+/* The background picker rides the same lattice as the tool grid above it —
+ same columns, same gap, same cell — because the two sit in one menu and any
+ other geometry reads as two widgets that happened to land in one box. It is
+ the LAST thing in the menu, so it drops the divider the tool grid uses to
+ separate itself from the rows below. Its cells carry a gradient rather than
+ an icon, so they must keep their fill when active — hence the tint moves to
+ the outline instead of the background. (They no longer need their own height:
+ `--ctx-cell` sizes every cell in the menu now, gradient or icon.) */
+.ctx-bg-grid { border-bottom: 0; margin-bottom: 0; }
+.ctx-bg { padding: 0; }
+.ctx-bg:hover { outline: 2px solid var(--teal-soft); }
+.ctx-bg.active { outline: 2px solid var(--teal); border-color: var(--teal); }
+/* z-order ladder: four chevrons in one row, never wrapping to a second */
+/* A LABELLED ROW of mini-toolbar cells — Layer, Motion and Spin (2026-08-08).
+ Each of these used to be a `ctx-title` on its own line above a row of
+ `btn tiny` buttons: a second button size, a second shape, and a whole line
+ of height spent on one word. The label is inline now and the cells are
+ `.ctx-tool`, so the menu has ONE button size in it from top to bottom. The
+ label column is fixed so Layer, Motion and Spin line their cells up with
+ each other rather than each starting wherever its own word ends. */
+.ctx-line {
+ display: flex; align-items: center; gap: 6px;
+ padding: 2px 2px 4px;
+}
+.ctx-line-label {
+ flex: 0 0 auto; min-width: 46px;
+ font-size: 11px; font-weight: 700; color: var(--ink-soft);
+}
+.ctx-cells { display: flex; gap: 3px; }
+/* **The same cell as the grid above** — and now literally the same number
+ rather than a copy of what the grid used to resolve to. This said 37×26,
+ measured off Create's stretched grid; the grid no longer stretches, so the
+ one place the size is decided is `--ctx-cell` and this row just reads it.
+ Stating it at all is still necessary: a chevron SVG, a "＋" and a "✕" are
+ three different widths, so `auto` gave a row of ragged buttons that only
+ happened to include the right size. */
+.ctx-line .ctx-tool { flex: 0 0 auto; }
+/* the sliders in the Motion and Spin rows take what is left of the line */
+.ctx-line .chip-slider { flex: 1 1 auto; min-width: 60px; }
+/* **Double-click a slider, type the number** (2026-08-08). The wrapper takes
+ the slider's own place in whatever row it is in — flex on the Motion/Spin
+ lines, a grid cell in the surface panel — so nothing about those layouts had
+ to learn about it. `display: contents` is deliberately NOT used: the box
+ replaces the slider inside this span, and a wrapper with no box of its own
+ cannot hold the row's width still while it does. */
+/* **The box takes the slider's place exactly** (2026-08-09, on request:
+ "Motion sliders should have a number input box that is smaller. So the
+ overall space used is the same. Ie (slider) width = (NumberInput +
+ 'seconds|speed') width").
+
+ It did not. The input carried `width: 100%` AND `flex: 1 1 auto`, so its flex
+ BASIS was the full width of the box and the unit button was added on top of
+ that — the box came out wider than the slider it replaced, and since a menu
+ is as wide as its widest row, the whole menu jumped: 293 → 344px on opening
+ the box, and 354 once "Seconds" replaced the shorter "Speed". A row that
+ resizes the menu under the cursor that opened it.
+
+ The fix is to take the box OUT OF FLOW. Stacking the two in one grid cell was
+ not enough — a text input has a default intrinsic width of its own (~136px
+ here, the `size` attribute's 20 characters), and any in-flow box still hands
+ that up to whatever is sizing it. Absolutely positioned, the box contributes
+ nothing at all: the wrapper is sized by the SLIDER alone, exactly as it was
+ before there was a box, and `inset: 0` makes the box precisely that size.
+ Which is the request, read literally — slider width = number + unit width.
+
+ The slider stays in flow while typing and is hidden with `visibility`, NOT
+ `display: none`: it is doing the sizing, and a `display: none` element sizes
+ nothing. Hidden is also un-hittable, so the box on top gets every click. */
+.typable { position: relative; display: flex; align-items: center; flex: 1 1 auto; min-width: 0; }
+.typable-off { visibility: hidden; }
+/* `margin: 0` so the wrapper's box IS the slider's box — a range input carries
+ a default 2px side margin, which otherwise made every wrapped slider 4px
+ narrower than the one it replaced. */
+.typable > input[type=range] { flex: 1 1 auto; min-width: 0; width: 100%; margin: 0; }
+/* …except in a `.chip-row`, where the slider is a fixed 90px with its value
+ beside it. The wrapper takes the width the SLIDER had rather than the width
+ the row has — the Motion/Spin lines and the scenery dials stretch, and
+ always did. */
+.chip-row > .typable { flex: 0 0 auto; width: 90px; }
+.typable-box { position: absolute; inset: 0; display: flex; align-items: center; gap: 3px; min-width: 0; }
+/* `flex: 1 1 0` — basis ZERO, not `auto`, and no `width: 100%`. Those two were
+ the bug: a basis of "as wide as the box" plus a unit button beside it makes a
+ box wider than the box. At basis 0 the number takes exactly what the unit
+ word leaves, so switching Speed ⇄ Seconds moves the boundary between them and
+ never the total. */
+.typable-input {
+ font: inherit; font-size: 11px;
+ font-variant-numeric: tabular-nums;
+ flex: 1 1 0; min-width: 0;
+ padding: 2px 5px;
+ border: 1px solid var(--teal);
+ border-radius: 6px;
+ background: var(--paper);
+ color: var(--ink);
+}
+.typable-input:focus { outline: 2px solid var(--teal-soft); outline-offset: 0; }
+/* The units toggle (Speed ⇄ Seconds). Small, quiet and beside the number
+ rather than under it: it names what the box you are looking at contains, so
+ it has to be readable at a glance and must not take the width the number
+ needs. */
+.typable-unit {
+ font: inherit; font-size: 10px; font-weight: 700;
+ flex: 0 0 auto;
+ padding: 2px 5px;
+ border: 1px solid var(--line);
+ border-radius: 6px;
+ background: var(--paper);
+ color: var(--teal);
+ cursor: pointer;
+}
+.typable-unit:hover { background: var(--teal-soft); }
+.ctx-tool-danger { color: var(--danger); }
+.ctx-tool-danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+.z-btn { color: var(--ink-soft); }
+.z-btn:hover { color: var(--teal); }
+
+/* ---------- profile tables (same sheet as the Solves screen) ---------- */
+
+.profile-table { margin-bottom: 26px; }
+.profile-table .info-filters { margin-bottom: 8px; }
+.solve-table td.where, .solve-table th.where { white-space: nowrap; }
+/* Visibility is one glyph now (SOLVE_VIS), so the column shrinks to it and
+ centres — at the old 12px the icons read as smudges rather than symbols. */
+.solve-table td.vis, .solve-table th.vis { white-space: nowrap; width: 1%; text-align: center; font-size: 15px; }
+.solve-table th.vis { font-size: 14px; }
+/* the tag says where a thing lives; local is the one that needs noticing,
+ because it exists in this browser and nowhere else */
+.where-tag { font-size: 11px; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+.where-tag.local { background: var(--gold); color: #fff; }
+.where-tag.server { background: var(--paper-dim); color: var(--ink-soft); border: 1px solid var(--line); }
+.solve-table tr.local td.name a { color: var(--ink); }
+.btn.tiny.danger { color: var(--danger); }
+.btn.tiny.danger:hover { background: var(--danger); color: #fff; }
+
+/* Bulk delete on the levels table (§13). The select-all header must NOT look
+ like a sortable column — every other `th` in this table is a click target
+ that re-sorts, and one that re-sorted under the hand about to tick it would
+ be a trap. */
+.solve-table th.pick, .solve-table td.pick { width: 30px; padding-right: 0; text-align: center; }
+.solve-table th.pick { cursor: default; }
+.solve-table th.pick .sort-mark { display: none; }
+.row-pick { width: 15px; height: 15px; accent-color: var(--teal); cursor: pointer; margin: 0; }
+.row-pick:disabled { cursor: default; opacity: .4; }
+/* The bar only exists while something is selected, so it can be loud: it is
+ holding a destructive action and the count is the thing to read. */
+.bulk-bar {
+ display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+ margin: 0 0 8px;
+ padding: 6px 10px;
+ background: var(--teal-soft);
+ border: 1px solid var(--teal);
+ border-radius: 8px;
+ font-size: 13px; font-weight: 600;
+}
+.bulk-bar.hidden { display: none; }
+
+/* ---------- stale-tab notice ----------
+ Deliberately quiet: bottom-left, small, translucent until you look at it.
+ It is a note for whoever is editing the code, not an announcement — it must
+ never read as an error, and it must never sit over anything you're using. */
+
+.build-note {
+ position: fixed;
+ left: 12px; bottom: 12px;
+ z-index: 400; /* above the Solves screen, which is 200 */
+ display: flex; align-items: center; gap: 8px;
+ padding: 5px 6px 5px 11px;
+ font-size: 12px;
+ color: var(--ink-soft);
+ background: var(--plate);
+ border: 1px solid var(--line);
+ border-radius: 999px;
+ box-shadow: var(--shadow);
+ opacity: 0.55;
+ transition: opacity .15s ease;
+}
+.build-note:hover { opacity: 1; }
+/* The "you left the Maker" offer shares the build note's chrome but not its
+ shyness: it is answering an accident that just happened, so it reads at full
+ strength, and it sits on the other side so the two can never overlap. */
+.return-note { left: auto; right: 12px; opacity: 1; }
+.build-note .btn { font-size: 11px; padding: 2px 8px; }
+.build-note-x { padding: 2px 6px; color: var(--ink-soft); }
+
+/* ---------- Solves screen (level details, records, solves, comments) ----------
+ Fixed to the viewport and above the site nav: it replaced a 340 px slide-out
+ aside, and "takes over the screen" has to include the nav or it isn't one. */
+
+.info-screen {
+ position: fixed;
+ inset: 0;
+ z-index: 200;
+ display: flex;
+ flex-direction: column;
+ background: linear-gradient(var(--sky-top), var(--sky-bot)) fixed;
+}
+/* sticky header so the way out is always on screen, however far down the
+ solve table you have scrolled */
+.info-bar {
+ display: flex; align-items: center; gap: 10px;
+ padding: 10px 18px;
+ background: var(--plate);
+ border-bottom: 1px solid var(--line);
+ box-shadow: var(--shadow);
+}
+.info-bar h2 { margin: 0; font-size: 20px; }
+.info-close { font-size: 18px; padding: 2px 10px; }
+/* Campaign ‹ ^ › on the Solves bar — same control as the play HUD, so
+ skipping levels while reading solves is the same three arrows. */
+.info-bar .hud-nav { flex: 0 0 auto; }
+.info-body {
+ flex: 1;
+ overflow-y: auto;
+ padding: 18px;
+ /* the content column is capped, not the panel: a full-width table of solves
+ on a 27" monitor is a row of numbers a foot apart */
+ max-width: 1180px;
+ width: 100%;
+ margin: 0 auto;
+}
+.info-section { margin-bottom: 26px; }
+.info-section h3 { margin: 0 0 10px; font-size: 16px; }
+
+/* 1. details + thumbnail */
+.info-details {
+ display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: var(--radius);
+ padding: 14px;
+}
+.info-thumb {
+ width: 384px; max-width: 100%; height: auto;
+ border-radius: 8px; border: 1px solid var(--line);
+ background: var(--paper-dim);
+}
+.info-thumb.clickable { cursor: pointer; }
+.info-meta { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.info-meta p { margin: 0; }
+.info-desc { white-space: pre-wrap; }
+.info-scales { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.info-badges { display: flex; flex-wrap: nowrap; font-size: 16px; }
+
+/* the link people paste into Discord — full, selectable, one-click copy */
+.info-link-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.info-link-row label { flex: 0 0 auto; font-size: 12px; }
+.info-url {
+ flex: 1 1 260px; min-width: 0;
+ font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+ font-size: 12px;
+ background: var(--paper-dim);
+}
+
+/* 2. records — each tile now names its holder underneath */
+.record-by { font-size: 12px; margin-top: 2px; }
+.record-by a { color: var(--teal); text-decoration: none; }
+.record-by a:hover { text-decoration: underline; }
+
+/* 3. the solve sheet */
+/* Same shape as the Workshop's row, same reasoning — see .browse-search-row. */
+.info-filters { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; width: 100%; }
+.info-filters .search { flex: 0 1 240px; min-width: 140px; }
+.info-filters .author { flex: 0 1 170px; min-width: 120px; }
+.info-filters select { flex: 0 0 auto; }
+.info-count { margin-left: auto; font-size: 12px; }
+/* the table scrolls sideways inside its own box — the page never does */
+.solve-table-wrap {
+ overflow-x: auto;
+ background: var(--paper);
+ border: 1px solid var(--line);
+ border-radius: var(--radius);
+}
+.solve-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.solve-table th, .solve-table td {
+ padding: 6px 9px;
+ text-align: left;
+ border-bottom: 1px solid var(--line);
+ vertical-align: top;
+}
+.solve-table thead th {
+ position: sticky; top: 0; z-index: 1;
+ background: var(--paper-dim);
+ font-size: 12px; font-weight: 700; white-space: nowrap;
+ cursor: pointer;
+ user-select: none;
+}
+.solve-table thead th:hover { color: var(--teal); }
+.solve-table th.n, .solve-table td.n { text-align: right; white-space: nowrap; }
+.solve-table th.num, .solve-table td.num { white-space: nowrap; }
+.solve-table td.who { font-weight: 700; white-space: nowrap; }
+.solve-table td.who a { color: var(--teal); text-decoration: none; }
+.solve-table td.name { min-width: 160px; }
+/* The campaign number, editable in the Levels table (§13). `.input` is
+ `width: 100%`, which turned a two-digit field into the whole column and
+ wrapped the remove button underneath it — this holds a number, so it is
+ sized like one and the ✕ sits beside it. The column stays narrow, which
+ also keeps the running order scannable straight down the left edge. */
+.campaign-num-cell { display: inline-flex; align-items: center; gap: 4px; }
+.campaign-num { width: 46px; padding: 3px 5px; font-size: 13px; text-align: center; }
+.campaign-num::placeholder { opacity: .45; }
+.campaign-num-cell .btn { padding: 2px 6px; line-height: 1; }
+.solve-table th.n:first-of-type, .solve-table td.n:first-of-type { width: 1%; }
+.solve-table td.act { white-space: nowrap; text-align: right; }
+.solve-table td.act > * { margin-left: 4px; }
+.solve-table tr.attempt td { opacity: 0.6; }
+/* WHERE a save lives, as the row's colour rather than a column (§8.2). The
+ tag column spent a full column width answering "server" on almost every row;
+ a local save is the exception, so it is the one that gets marked. The bar is
+ on the left edge only — tinting the whole row would fight the `attempt`
+ fade and the hover, both of which also speak through the row's background.
+ Gold matches the `.where-tag.local` pill it replaces, so the colour still
+ means what it always meant here. */
+.solve-table tr.local td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.solve-table tr.local td.solve-name { font-style: italic; }
+.solve-table tbody tr:hover td { background: var(--teal-soft); }
+/* the run's own name — a column now, not a sub-line (see PROFILE_SOLVE_COLS) */
+.solve-table td.solve-name, .solve-table th.solve-name { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sort-mark { margin-left: 4px; opacity: 0.35; font-size: 10px; }
+.sort-mark::after { content: '↕'; }
+.sorted-up .sort-mark, .sorted-down .sort-mark { opacity: 1; color: var(--teal); }
+.sorted-up .sort-mark::after { content: '↑'; }
+.sorted-down .sort-mark::after { content: '↓'; }
+.solve-table .solve-note { font-size: 12px; margin-top: 2px; white-space: normal; }
+.solve-table .solve-visibility { font-size: 11px; padding: 1px 4px; width: auto; display: inline-block; }
+.info-empty { text-align: center; padding: 18px; }
+
+/* title and rating share a line, and wrap together rather than the stars
+ dangling on their own when the panel is narrow */
+.level-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.level-head h2 { margin: 0; }
+
+.rating-row { display: inline-flex; align-items: center; gap: 1px; cursor: help; }
+/* square box so the "yours" ring is a circle and not an oval */
+.star {
+ font-size: 20px;
+ width: 1.25em; height: 1.25em;
+ display: inline-flex; align-items: center; justify-content: center;
+ background: none; border: 0; padding: 0; line-height: 1;
+ color: #cfd6e4;
+ cursor: pointer;
+ border-radius: 50%;
+}
+.star:hover { color: var(--gold); }
+/* filled = the global average */
+.star.on { color: var(--gold); }
+/* ringed = the star YOU picked. An outline rather than a border so nothing
+ reflows when it appears, and it follows the radius into a circle. */
+.star.mine { outline: 2px solid var(--gold); outline-offset: -2px; }
+.star.mine:not(.on) { outline-color: color-mix(in srgb, var(--gold) 60%, var(--line)); }
+.rating-row.readonly .star { cursor: inherit; }
+.rating-row.readonly .star:hover { color: #cfd6e4; }
+.rating-row.readonly .star.on:hover { color: var(--gold); }
+
+/* difficulty 1–10: a ten-pip bar, not ten stars. Length answers "how hard",
+ the green→red ramp answers it again, and neither can be mistaken for the
+ gold quality stars sitting next to it. */
+.diff-row { display: inline-flex; align-items: center; gap: 2px; cursor: help; }
+.pip {
+ width: 6px; height: 15px;
+ background: #d8dde8;
+ border: 0; padding: 0; margin: 0;
+ border-radius: 2px;
+ cursor: pointer;
+ transition: background .1s;
+}
+.pip:first-child { border-radius: 4px 2px 2px 4px; }
+.pip:last-child { border-radius: 2px 4px 4px 2px; }
+/* filled = the crowd average, each pip in its own place on the ramp */
+.pip.on { background: var(--pip); }
+/* hover fills 1..hovered like a slider. :has() reaches the EARLIER siblings,
+ which no plain combinator can; without it you just get the one pip lit. */
+.diff-row:not(.readonly) .pip:hover,
+.diff-row:not(.readonly) .pip:has(~ .pip:hover) { background: var(--pip); }
+/* ringed = the number YOU picked. Outline, so nothing reflows when it lands;
+ zero offset, or at 2px gaps the ring sits on top of its neighbours. */
+.pip.mine { outline: 2px solid var(--ink); outline-offset: 0; }
+.diff-row.readonly .pip { cursor: inherit; }
+
+/* nobody has voted: an empty row of cells otherwise reads as a half-loaded
+ progress bar, which is a louder statement than "no ratings" ever was */
+.rating-row.empty, .diff-row.empty { opacity: .4; }
+.rating-row.empty:hover, .diff-row.empty:hover { opacity: 1; }
+
+.rating-note { font-size: 12px; white-space: nowrap; }
+/* beside a title the stars shouldn't outweigh it */
+.level-head .star, .hud-top .star { font-size: 15px; }
+.hud-top .rating-row { margin-left: 2px; }
+.level-head .pip, .hud-top .pip { height: 13px; width: 5px; }
+.hud-top .diff-row { margin-left: 8px; }
+/* on a card the two scales sit inside the subtitle line, so they shrink — and
+ they need real air between them or they read as one strange strip */
+.card-scales { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+.card-sub .star { font-size: 11px; width: 1em; height: 1em; }
+.card-sub .pip { height: 8px; width: 3px; border-radius: 1px; }
+.card-sub .diff-row { gap: 1.5px; }
+.solve-list { display: flex; flex-direction: column; gap: 6px; }
+.solve-row {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ flex-wrap: wrap;
+ font-size: 13px;
+ background: var(--paper-dim);
+ border-radius: 8px;
+ padding: 6px 9px;
+}
+.solve-row.attempt { opacity: 0.65; }
+.solve-who { font-weight: 700; }
+.solve-who a { color: var(--teal); text-decoration: none; }
+.solve-badges { display: inline-flex; flex-wrap: nowrap; font-size: 13px; }
+.comments { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.comment { background: var(--paper-dim); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+.comment p { margin: 3px 0 0; }
+.comment-remove { float: right; padding: 0 5px; line-height: 1.4; }
+.comment-input { display: flex; gap: 6px; }
+
+/* ---------- modal ---------- */
+
+.modal-overlay {
+ position: fixed;
+ inset: 0;
+ /* A modal must clear every surface it can be OPENED FROM. 100 predates the
+ Solves screen (200), so "Delete this solve?" rendered UNDERNEATH it and
+ only appeared once the page was closed — a confirm you answer blind.
+ 450: above the Solves screen and the build-note (400), below tooltips
+ (500), which may legitimately explain a modal's own controls. */
+ z-index: 450;
+ background: rgba(35,42,53,.45);
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ padding: 20px;
+}
+.modal {
+ background: #fff;
+ border-radius: 14px;
+ box-shadow: var(--shadow);
+ width: min(480px, 100%);
+ max-height: 86vh;
+ overflow-y: auto;
+ padding: 18px 20px;
+}
+/* The save dialog trades a dropdown for a row of destination buttons, and five
+ buttons plus their labels don't fit the standard box. A modifier rather than
+ a wider .modal everywhere: every other dialog is a name and two actions, and
+ 600px of white space around those reads as a mistake. */
+.modal.wide { width: min(600px, 100%); }
+.modal h3 { margin: 0 0 10px; }
+
+/* The label editor (§10.6). There is no preview pane: the FIELD is the preview,
+ rendered in the chosen face, colour and style as you type — a truer answer
+ than a thumbnail beside it, and one fewer thing to read. Size is absent on
+ purpose too; it is the corner handles and the scroll wheel. */
+.text-edit-area {
+ font-size: 20px; /* big enough that a typeface is identifiable */
+ line-height: 1.25;
+ resize: vertical;
+ min-height: 74px;
+ transition: background .12s ease;
+}
+/* Rows of controls, label on the left, in the modal AND in the context menu —
+ one builder feeds both (`_textControls`), so one rule dresses both. */
+.text-controls { gap: 6px; padding: 6px 0 2px; }
+.text-controls .ctx-swatch-row {
+ display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.text-controls .btn.tiny { min-width: 26px; }
+/* the dropdown prints each option in its own face — the only honest preview of
+ a typeface is the typeface */
+.text-font-select { flex: 1 1 150px; min-width: 120px; max-width: 240px; padding: 5px 8px; }
+/* The custom-colour swatch: a colour wheel until one is picked, then the picked
+ colour itself, with a pencil over it either way so it reads as "open the
+ picker" rather than as a fifteenth palette entry. */
+.swatch-custom { position: relative; }
+.swatch-custom-mark {
+ position: absolute; inset: 0;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 11px; color: #fff;
+ text-shadow: 0 0 3px rgba(35,42,53,.9);
+ pointer-events: none;
+}
+.swatch-custom.open { outline: 2px solid var(--teal); }
+
+/* The picker itself (§10.6) — HSV square, hue strip, R/G/B and hex. Built
+ rather than `<input type=color>`, which opens the OS dialog: a different
+ window, a different look on every machine, and no live preview of the label
+ underneath it. */
+.cp {
+ display: flex; flex-direction: column; gap: 6px;
+ padding: 8px; margin: 2px 0 4px;
+ background: var(--paper-dim);
+ border: 1px solid var(--line); border-radius: 10px;
+ width: max-content;
+}
+.cp-square-wrap, .cp-hue-wrap { position: relative; line-height: 0; }
+.cp-square, .cp-hue { display: block; border-radius: 6px; cursor: crosshair; touch-action: none; }
+.cp-dot, .cp-hue-dot {
+ position: absolute;
+ border: 2px solid #fff;
+ border-radius: 50%;
+ box-shadow: 0 0 0 1px rgba(35,42,53,.6);
+ pointer-events: none;
+}
+.cp-dot { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+.cp-hue-dot { width: 10px; height: 18px; margin: -2px 0 0 -5px; border-radius: 4px; top: 0; }
+.cp-fields { display: flex; align-items: center; gap: 5px; }
+.cp-preview {
+ width: 26px; height: 26px; flex: 0 0 auto;
+ border: 1px solid var(--line); border-radius: 6px;
+}
+.cp-field { display: flex; align-items: center; gap: 2px; font-size: 11px; color: var(--ink-soft); }
+.cp-num { width: 46px; padding: 3px 4px; font-size: 12px; }
+/* the spinners are noise at this size — the value is typed or dragged */
+.cp-num::-webkit-outer-spin-button, .cp-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cp-num { -moz-appearance: textfield; }
+.cp-hex {
+ width: 78px; padding: 3px 5px; font-size: 12px;
+ font-family: ui-monospace, Consolas, monospace;
+}
+.text-controls .chip-note { font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+.ctx-menu .text-controls { padding: 4px 10px 6px; max-width: 268px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+/* Files dialog: one labelled row per kind (Level / Solution / L&S), Save
+ formats grouped, Load (AUTO) at the end. */
+.file-row {
+ display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+ margin-top: 12px;
+}
+.file-row-label { font-weight: 800; min-width: 5.4em; }
+.file-save { display: inline-flex; align-items: center; gap: 4px; }
+.file-save-lab { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.file-row .btn.tiny { padding: 4px 8px; }
+/* Cancel-side left, commit-side right. The gap between the two groups is the
+ point: the destructive-to-the-gesture button can't sit next to the one that
+ publishes to the world. */
+.modal-actions.split { justify-content: space-between; align-items: center; }
+.modal-actions.split .action-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Where a save goes (§11.6): four ordered stops from "this browser" out to
+ "the whole Workshop", resting on the safe end. The labels are buttons too —
+ a four-stop range is fiddly to hit exactly, and clicking the word you want
+ is what everyone tries first. */
+.vis-picker { margin-top: 14px; }
+.vis-ticks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.vis-tick {
+ font: inherit; font-size: 12px; font-weight: 700;
+ color: var(--ink-soft);
+ background: transparent;
+ border: 0;
+ padding: 4px 2px;
+ border-radius: 6px;
+ cursor: pointer;
+}
+.vis-tick:hover { background: var(--teal-soft); }
+.vis-tick.on { color: var(--teal); }
+
+/* The track is built rather than borrowed so its stops can sit exactly under
+ the WORDS above it — at (i + 0.5)/n, the centre of each label's column. A
+ native range thumb sweeps its own left edge to its own right edge instead,
+ which is why it could never line up (see _visSlider). Every position here is
+ a percentage of the same box, so the fill, the dots and the thumb agree by
+ construction. */
+.vis-track {
+ position: relative;
+ height: 22px;
+ margin: 2px 0 0;
+ cursor: pointer;
+ touch-action: none;
+}
+.vis-track:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 6px; }
+.vis-rail, .vis-fill {
+ position: absolute; top: 50%; left: 0;
+ height: 6px; margin-top: -3px;
+ border-radius: 999px;
+}
+.vis-rail { right: 0; background: var(--line); }
+.vis-fill { background: var(--teal); }
+.vis-dot {
+ position: absolute; top: 50%;
+ width: 8px; height: 8px; margin: -4px 0 0 -4px;
+ border-radius: 50%;
+ background: var(--paper); border: 2px solid var(--line);
+ pointer-events: none;
+}
+.vis-dot.on { background: var(--teal); border-color: var(--teal); }
+.vis-thumb {
+ position: absolute; top: 50%;
+ width: 18px; height: 18px; margin: -9px 0 0 -9px;
+ border-radius: 50%;
+ background: #fff;
+ border: 3px solid var(--teal);
+ box-shadow: 0 1px 3px rgba(35,42,53,.3);
+ pointer-events: none;
+ /* No transition on `left`. Four discrete stops do not need easing, and a
+ transition is a promise the page will keep producing frames — which is not
+ true everywhere this runs (a non-compositing embed froze the thumb at its
+ first value while the fill, which has none, tracked correctly). The
+ cheapest way not to depend on animation is not to animate. */
+}
+.vis-note { font-size: 12px; line-height: 1.4; min-height: 34px; margin-top: 4px; }
+
+/* ---------- admin ---------- */
+
+.admin-stat-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+ gap: 10px;
+ margin-bottom: 10px;
+}
+.admin-stat { background: var(--paper-dim); border-radius: 8px; padding: 10px 12px; text-align: center; }
+.admin-stat-val { font-size: 22px; font-weight: 700; }
+.admin-user-table { display: flex; flex-direction: column; gap: 6px; margin-bottom: 30px; }
+.admin-user-row {
+ display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+ background: var(--paper-dim); border-radius: 8px; padding: 8px 12px;
+}
+.admin-user-name { flex: 1; font-weight: 600; }
+.admin-user-row.banned { background: rgba(224, 85, 85, 0.13); }
+.admin-user-row.held { background: rgba(212, 160, 23, 0.13); }
+
+/* Active now. The dot is the only ornament: a live list wants one glance to
+ answer "is anyone here", and a green pip does that faster than a timestamp. */
+.admin-active .active-dot { color: var(--teal); font-size: 10px; margin-right: 5px; vertical-align: 1px; }
+.admin-active-path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; opacity: .75; }
+
+/* Admin users spreadsheet. A grid rather than a flex list so every column
+ lines up down the page — the whole point is comparing accounts against each
+ other and against their limits. Scrolls horizontally on its own so a narrow
+ window never makes the page itself scroll sideways. */
+.admin-grid {
+ display: grid;
+ /* These twelve minimums used to total 1150 px inside a 1100 px shell, so the
+ table scrolled sideways on every screen ever made. `.main.wide` gave the
+ page the monitor; trimming the two text columns takes the total to 1076,
+ which means it also fits a laptop at the ORDINARY width. Both halves are
+ needed — the shell alone still left a 1366 laptop scrolling. */
+ grid-template-columns: minmax(130px, 1.4fr) minmax(104px, 1.2fr) 92px 72px
+ 104px 64px 104px 68px 84px 92px 70px 92px;
+ gap: 1px 0;
+ margin-bottom: 30px;
+ overflow-x: auto;
+ font-size: 13px;
+}
+.admin-grid-row { display: contents; }
+.admin-grid-c, .admin-grid-h {
+ padding: 7px 8px;
+ background: var(--paper-dim);
+ display: flex; align-items: center; gap: 2px;
+ min-width: 0;
+ overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.admin-grid-c.num { justify-content: flex-end; }
+.admin-grid-h {
+ position: sticky; top: 0; z-index: 1;
+ background: var(--paper);
+ border-bottom: 2px solid var(--line);
+ font-weight: 700; font-size: 12px; color: var(--ink-soft);
+ cursor: pointer; text-align: left;
+}
+.admin-grid-h:hover { color: var(--ink); }
+.admin-grid-h.sorted { color: var(--teal); }
+.admin-grid-row.banned .admin-grid-c { background: rgba(224, 85, 85, 0.13); }
+.admin-grid-row.held .admin-grid-c { background: rgba(212, 160, 23, 0.13); }
+.admin-grid-c.at-limit .admin-used { color: var(--danger); font-weight: 700; }
+.admin-limit {
+ width: 52px; min-width: 0;
+ font: inherit; text-align: right;
+ border: 1px solid var(--line); border-radius: 5px;
+ padding: 1px 3px; background: var(--paper);
+}
+.admin-limit:focus { outline: 2px solid var(--teal); border-color: var(--teal); }
+.admin-status { font: inherit; border: 1px solid var(--line); border-radius: 5px; padding: 1px 3px; background: var(--paper); }
+.admin-status.hold { color: var(--gold); font-weight: 700; }
+.admin-status.banned { color: var(--danger); font-weight: 700; }
+/* the ⋯ that opens the roles menu — quiet until you are on the row, but always
+ THERE, unlike the right-click it replaced */
+.admin-grid-c .spacer { flex: 1; }
+.role-btn { padding: 0 5px; line-height: 1.1; opacity: 0.35; }
+.admin-grid-row:hover .role-btn, .role-btn:focus { opacity: 1; }
+
+/* ---------- page tabs: Admin's seven sections, the Workshop's two ----------
+ `page-` prefixed and NOT `.tabs`/`.tab`, which were already taken by the
+ Maker's pill switch — one rename collided with them and turned the Maker's
+ Create/Test control into an underline. Two different tab shapes is fine; two
+ things called `.tab` is not. */
+.page-tabs {
+ display: flex; flex-wrap: wrap; gap: 2px;
+ border-bottom: 2px solid var(--line);
+ margin-bottom: 18px;
+}
+.page-tab {
+ font: inherit; font-weight: 600; font-size: 14px;
+ color: var(--ink-soft);
+ background: none; border: 0;
+ border-bottom: 3px solid transparent;
+ margin-bottom: -2px; /* sit the underline ON the bar's own rule */
+ padding: 8px 14px;
+ cursor: pointer;
+ white-space: nowrap;
+}
+.page-tab:hover { color: var(--ink); background: var(--paper-dim); }
+.page-tab.on { color: var(--teal); border-bottom-color: var(--teal); }
+/* a count beside a tab's name — "Challenges 3" */
+.page-tab-n { font-size: 11px; opacity: 0.7; margin-left: 5px; }
+.page-panel.hidden { display: none; }
+
+/* ---------- admin: editable text (§13.1) ---------- */
+.admin-text-group { margin: 22px 0 6px; font-size: 15px; color: var(--teal); }
+.admin-text-row {
+ border: 1px solid var(--line); border-radius: 8px;
+ padding: 8px 10px; margin-bottom: 8px; background: var(--paper);
+}
+.admin-text-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+.admin-text-head .spacer { flex: 1; }
+.admin-text-key { font-size: 11px; color: var(--ink-soft); background: var(--paper-dim); padding: 1px 5px; border-radius: 4px; }
+.admin-text-status { font-size: 11px; }
+.admin-text-area { width: 100%; font: inherit; font-size: 13px; line-height: 1.4; resize: vertical; }
+.admin-text-area.tall { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.form-ok { color: var(--teal); font-size: 13px; margin: 6px 0; }
+
+/* ---------- admin: campaign definitions ---------- */
+.admin-campaign {
+ border: 1px solid var(--line); border-radius: 8px;
+ padding: 10px 12px; margin-bottom: 10px; background: var(--paper);
+}
+.admin-campaign-row {
+ display: grid;
+ grid-template-columns: 1fr 140px auto;
+ gap: 10px;
+ align-items: end;
+ margin-bottom: 6px;
+}
+.admin-campaign-head {
+ grid-template-columns: 1fr auto;
+}
+.admin-campaign-row .field { margin: 0; }
+.admin-campaign-row .btn { margin-bottom: 2px; }
+.admin-campaign-sections { margin-top: 8px; }
+.admin-campaign-section {
+ margin-top: 10px; padding-top: 10px;
+ border-top: 1px solid var(--line);
+}
+
+/* ---------- admin: the tuning dials (§13.1) ---------- */
+/* Five columns: what it is called, what it is now, what it does, where it can
+ sensibly go, and what it shipped as. The wide page (§13.1) is what makes the
+ prose column affordable. */
+.admin-tune {
+ display: grid;
+ grid-template-columns: minmax(150px, auto) 64px minmax(240px, 1fr) 110px 84px;
+ gap: 1px 0; margin-bottom: 18px;
+}
+.admin-tune-row { display: contents; }
+.admin-tune-row > * { padding: 5px 8px; background: var(--paper-dim); font-size: 13px; }
+.admin-tune-row.set > * { background: var(--teal-soft); }
+.admin-tune-row.head > * {
+ background: var(--paper); font-weight: 700; font-size: 11px;
+ color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em;
+ border-bottom: 2px solid var(--line);
+}
+.admin-tune-row > code { font-size: 12px; }
+.admin-tune-what { color: var(--ink-soft); line-height: 1.35; }
+.admin-tune-sane { font-variant-numeric: tabular-nums; }
+.admin-tune-flag { color: var(--teal); font-weight: 700; }
+@media (max-width: 900px) {
+ /* the prose is the first thing to go when there is no room for it */
+ .admin-tune { grid-template-columns: minmax(140px, auto) 64px 100px 80px; }
+ .admin-tune-what { display: none; }
+}
+.admin-tune-notes {
+ border: 1px solid var(--gold); border-left-width: 3px; border-radius: 8px;
+ padding: 8px 10px; margin: 10px 0; font-size: 13px; background: rgba(212, 160, 23, 0.08);
+}
+.role-tag { color: var(--teal); font-weight: 800; font-size: 11px; }
+
+.level-records { display: flex; gap: 8px; margin-bottom: 10px; }
+.level-records .record {
+ flex: 1; text-align: center;
+ background: var(--paper-dim); border-radius: 8px; padding: 6px 4px;
+ font-size: 12px;
+}
+.level-records .record-val { font-size: 15px; font-weight: 700; }
+
+/* solve star ratings + comment thumbs */
+.solve-stars { display: inline-flex; align-items: center; }
+.solve-stars .star.tiny { font-size: 13px; padding: 0; }
+.solve-name { font-weight: 600; }
+.comment-votes { display: inline-flex; align-items: center; gap: 1px; margin-left: 4px; }
+.comment-votes .vote { padding: 0 3px; font-size: 12px; opacity: 0.5; }
+.comment-votes .vote:hover { opacity: 1; }
+.comment-votes .vote.on { opacity: 1; background: var(--teal-soft); }
+.flagged-row { align-items: flex-start; }
+.flagged-body { flex: 1; min-width: 220px; }
+.flagged-body a.admin-user-name { color: var(--teal); text-decoration: none; }
+.flagged-text { margin: 4px 0; font-size: 13px; }
+
+/* ---------- tooltips ---------- */
+
+/* One fixed node reused for every [data-tip] (util.js installTooltips), so it
+ can't be clipped by the overflow:hidden on level cards. */
+.tip {
+ position: fixed;
+ left: 0; top: 0;
+ /* Above EVERYTHING, and that is the tooltip's whole contract — it is
+ pointer-events:none, so nothing is ever behind it that you could want.
+ It sat at 200, tying the Solves screen, and the tie was settled by DOM
+ order — which depended on when the tip node was lazily created. Hover
+ anything before opening the panel (every real session) and the node
+ predates the panel, so the panel painted over every tooltip inside it:
+ the icon-only badge filters went mute exactly where they are needed
+ most, and it looked like they had no tips at all. 500 clears the
+ build-note (400), the current ceiling. */
+ z-index: 500;
+ max-width: 230px;
+ background: var(--ink);
+ color: #fff;
+ font-size: 12px;
+ line-height: 1.35;
+ border-radius: 8px;
+ padding: 6px 9px;
+ box-shadow: var(--shadow);
+ pointer-events: none;
+ opacity: 0;
+ transition: opacity 0.12s ease;
+ /* Kept although showTip now builds one node per line: a tip that still
+ arrives with a newline in it reads the same either way, and `pre-line`
+ only ever collapses runs of spaces, which no tip depends on. */
+ white-space: pre-line;
+}
+.tip.on { opacity: 1; }
+/* A quoted line inside a tip is somebody SPEAKING (util.js showTip), so it gets
+ the inversion again — ink on white, inside a tooltip that is white on ink.
+ Same shape as the `.chal-message` bubble on the card, one size down, so the
+ message reads as the same object wherever you meet it (§11.8). */
+.tip-said {
+ margin: 4px 0;
+ padding: 4px 8px;
+ border-radius: 6px;
+ background: #fff;
+ color: var(--ink);
+ font-style: italic;
+ overflow-wrap: anywhere;
+}
+/* first and last lines shouldn't push the bubble's margin against the padding */
+.tip-said:first-child { margin-top: 0; }
+.tip-said:last-child { margin-bottom: 0; }
+/* data-tip-wide: a tip that is a small CARD rather than a sentence — several
+ short lines, where the 230px default would wrap every one of them and turn
+ six lines into fourteen. */
+.tip.wide { max-width: min(94vw, 340px); }
+/* one-line tips (data-tip-1line): short enough to read as a single sentence,
+ and wrapping them orphans the last word. Still bounded by the viewport, and
+ showTip clamps the x position, so it can't run off the edge. */
+.tip.one-line { max-width: min(96vw, 520px); white-space: nowrap; }
+
+/* ---------- misc ---------- */
+
+@media (max-width: 860px) {
+ .import-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+ .main { width: calc(100% - 24px); }
+ .info-body { padding: 12px; }
+ .info-details { padding: 10px; }
+ .info-count { margin-left: 0; }
+ .nav { gap: 8px; padding: 8px 12px; }
+ .nav-link { padding: 5px 7px; font-size: 13px; }
+}
+
+/* ---------- sound settings (§17) ---------- */
+.nav-icon { font-size: 17px; line-height: 1; padding: 0 2px; }
+.settings { max-width: 720px; }
+.settings h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 22px 0 8px; }
+.set-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; cursor: pointer; }
+.set-row input[type=range] { flex: 1; max-width: 260px; accent-color: var(--teal); }
+.set-label { font-weight: 600; font-size: 13px; }
+.set-hint { font-size: 12px; }
+/* What a switch actually turns on, spelled out under it — for Advanced mode,
+ which hides three unrelated things and would otherwise be a checkbox you have
+ to flip to find out what it does. */
+.set-list { margin: 6px 0 0; padding-left: 20px; font-size: 12.5px; line-height: 1.5; }
+.set-list li { margin-bottom: 3px; }
+.set-list b { color: var(--ink); font-weight: 700; }
+.set-val { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-soft); min-width: 42px; text-align: right; }
+.set-master { border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+/* three side-by-side cards: the hint is the whole point, so they need room to
+ breathe rather than being a radio group of one-word labels */
+.set-themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.set-theme {
+ display: flex; flex-direction: column; gap: 5px;
+ text-align: left; font: inherit; cursor: pointer;
+ padding: 11px 13px;
+ background: #fff;
+ border: 1px solid var(--line); border-radius: 10px;
+}
+.set-theme:hover:not(:disabled) { border-color: var(--teal); }
+.set-theme.active { border-color: var(--teal); outline: 2px solid var(--teal); outline-offset: -1px; }
+.set-theme:disabled { opacity: .5; cursor: default; }
+.set-theme-name { font-weight: 700; font-size: 13px; }
+.set-theme-hint { font-size: 11.5px; color: var(--ink-soft); line-height: 1.45; }
+.set-langs .set-theme { flex-direction: row; align-items: center; gap: 12px; }
+.set-lang-flag { width: 56px; height: 37px; border-radius: 4px; }
+.set-lang-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* graphics style cards (§12): the preview canvas is the option */
+.set-gfx { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.set-gfx-canvas { width: 100%; height: auto; display: block; border-radius: 7px; border: 1px solid var(--line); }
+.set-section { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+.set-section:last-child { border-bottom: 0; }
+.set-section .set-row { flex: 1; }
+
+/* ---------- controls reference + tutorial (§18) ---------- */
+.keys h2 { margin: 26px 0 8px; }
+.key-stories { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 14px 0 6px; }
+.key-story {
+ background: #fff;
+ border: 1px solid var(--line); border-radius: 10px;
+ padding: 11px 13px;
+}
+.key-story h3 { margin: 0 0 5px; font-size: 13px; }
+.key-story p { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+.keys-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.keys-table td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+.keys-table tr:last-child td { border-bottom: 0; }
+.keys-table td:first-child { white-space: nowrap; width: 180px; }
+.keycol { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+/* A drawn glyph standing in for a key chip — GhostRun's button, printed as the
+ button rather than as an emoji of one (see the row that uses it). Wears the
+ same box a `kbd` does so the column still lines up, and `currentColor` in the
+ SVG means it takes the chip's ink like a letter would. */
+.keycol-icon {
+ display: inline-flex; align-items: center; justify-content: center;
+ padding: 1px 5px; border: 1px solid var(--line); border-radius: 5px;
+ background: var(--paper-dim); color: var(--ink-soft);
+}
+.keycol-icon svg { display: block; }
+kbd {
+ font: 600 11.5px var(--font);
+ background: var(--paper-dim);
+ border: 1px solid var(--line);
+ border-bottom-width: 2px;
+ border-radius: 5px;
+ padding: 2px 6px;
+}
+/* The snap button has three states, so it has to read as three things at a
+ glance and not as one thing that is sometimes lit (§8.1). ON is the lit
+ toolbar button every other toggle uses; REVERSED is an ordinary button with
+ the ⇧ prefix saying which key wakes it; OFF is dimmed, because "nothing will
+ move under your cursor" should look like nothing. */
+.snap-btn { font-variant-emoji: text; } /* its width is reserved above */
+.snap-btn.snap-off { opacity: .55; }
+
+/* The FC retraining page (§18): one difference per block, the thing running
+ above the words, same show-then-say order the tutorial uses. It lost its own
+ nav tab on 2026-08-10 and became the third part of the help page, so the
+ `.nav-fc` rule that sized those two letters went with it. */
+.fc { max-width: 820px; }
+.fc-part {
+ margin: 34px 0 4px; padding-top: 16px; border-top: 2px solid var(--line);
+ font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft);
+}
+.fc-diff { margin: 22px 0 0; }
+.fc-diff h2 {
+ margin: 0 0 12px; font-size: 20px; line-height: 1.3;
+ /* `.settings h2` uppercases every heading in a settings panel, which is right
+ for a settings panel and wrong for a sentence: these headings ARE sentences
+ and read as shouting in caps. */
+ text-transform: none; letter-spacing: normal; color: var(--ink);
+}
+.fc-show { margin-bottom: 12px; }
+.fc-show .demo-canvas { margin: 0 auto; max-width: 100%; }
+.fc-static canvas { width: 100%; height: auto; display: block; }
+.fc-say p { margin: 0 0 9px; line-height: 1.62; }
+.fc-say p:last-child { margin-bottom: 0; }
+.fc-say .learn-steps { margin-top: 4px; }
+
+.learn-section { margin-top: 30px; }
+.learn-section h2 { margin: 0 0 10px; }
+.demo-canvas { width: 100%; max-width: 560px; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; margin: 10px 0; }
+
+/* ---------- the guided tour (§18) ----------
+ One step on screen at a time, the picture above the words. The layout is the
+ argument: if the demo is not the first thing under the heading, the step has
+ been written the wrong way round. */
+.tour { max-width: 760px; }
+.tour-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tour-count { margin: 0; font-variant-numeric: tabular-nums; }
+.tour-skip { font-size: 12.5px; text-decoration: none; }
+.tour-skip:hover { text-decoration: underline; }
+.tour-rail { display: flex; gap: 6px; margin: 10px 0 18px; flex-wrap: wrap; }
+.tour-dot {
+ flex: 1 1 0; min-width: 14px; height: 6px; padding: 0;
+ border: 0; border-radius: 3px; background: var(--line); cursor: pointer;
+ transition: background .18s ease;
+}
+.tour-dot:hover { background: #c3cadb; }
+.tour-dot.done { background: rgba(101, 88, 230, 0.4); }
+.tour-dot.on { background: var(--teal); }
+.tour-title { margin: 0 0 14px; font-size: 26px; line-height: 1.25; }
+.tour-show { margin-bottom: 16px; }
+.tour-show .demo-canvas { margin: 0 auto; max-width: 100%; }
+.tour-say p { margin: 0 0 10px; line-height: 1.65; }
+.tour-say p:last-child { margin-bottom: 0; }
+.tour-keys { display: inline-flex; gap: 3px; vertical-align: baseline; }
+.tour-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 22px; }
+.tour-nav .btn:only-child { margin-left: auto; }
+
+/* Contrast pairs and trios: the caption under each panel is the lesson, so it
+ is styled as a label rather than as a sentence. */
+.tour-pair, .tour-trio { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.tour-pair .tour-panel { flex: 1 1 240px; }
+.tour-trio .tour-panel { flex: 1 1 190px; }
+.tour-panel { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tour-panel .demo-canvas { margin: 0; width: 100%; }
+.tour-panel-label {
+ font-size: 12px; color: var(--ink-soft); text-align: center;
+ padding: 3px 6px; border-radius: 6px; background: #f4f6fb;
+}
+.tour-panel.good .tour-panel-label { background: rgba(46, 160, 96, 0.12); color: #1f7a48; }
+.tour-panel.bad .tour-panel-label { background: rgba(201, 67, 127, 0.12); color: #a3376a; }
+
+.tour-buttons { display: flex; flex-direction: column; gap: 8px; }
+.tour-button {
+ display: flex; gap: 12px; align-items: baseline;
+ background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+}
+.tour-button kbd { flex: 0 0 62px; text-align: center; }
+.tour-button span { font-size: 13.5px; line-height: 1.55; }
+.tour-badges { margin: 0; }
+
+/* A picture of the real dialog, made of the real parts — not interactive, and
+ not a screenshot that would rot the first time the dialog changed. */
+.tour-mock {
+ background: #fff; border: 1px solid var(--line); border-radius: 12px;
+ padding: 14px 16px; max-width: 420px; margin: 0 auto;
+ box-shadow: 0 6px 22px rgba(35, 42, 53, 0.07);
+}
+.tour-mock-title { font-weight: 600; margin-bottom: 10px; }
+.tour-mock .chip-row { margin-bottom: 7px; }
+.tour-mock .input { max-width: 90px; }
+.tour-mock-actions { margin-top: 12px; text-align: right; }
+.tour-mock-actions .btn { cursor: default; }
+.tour-out { display: flex; gap: 9px; flex-wrap: wrap; margin: 14px 0; }
+
+/* The PART row (§18): the three people at the help page's door — Beginner,
+ Level Maker, FC — above the chapter row and deliberately louder than it.
+
+ It has to read as a level ABOVE the chapters or the page has two identical
+ rows of tabs and no hierarchy, so it is bigger type, a filled active state
+ rather than an outlined one, and it sits over its own rule. They are <a>
+ elements, not buttons: each part is a real URL, which is what let the FC
+ page give up its nav tab without becoming unreachable. */
+.tour-parts {
+ display: flex; gap: 8px; flex-wrap: wrap;
+ margin: 0 0 16px; padding-bottom: 14px;
+ border-bottom: 1px solid var(--line);
+}
+.tour-part {
+ flex: 1 1 170px; min-width: 0;
+ display: flex; flex-direction: column; gap: 2px;
+ text-decoration: none; color: var(--ink);
+ background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+ padding: 9px 13px;
+}
+.tour-part b { font-size: 15px; }
+.tour-part .muted { font-size: 11px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tour-part:hover { background: var(--teal-soft); border-color: var(--teal); }
+.tour-part.on { background: var(--teal); border-color: var(--teal); }
+.tour-part.on b, .tour-part.on .muted { color: #fff; }
+.tour-part.on .muted { opacity: .82; }
+/* The FC part is a written page rather than a tour, so its tabs sit in a
+ `.settings` panel whose h1 follows immediately — without this the heading
+ crowds the row it is supposed to sit under. */
+.fc .tour-parts { margin-bottom: 20px; }
+
+/* The chapter row (§18): the part's own chapters, each wearing its own sales
+ pitch. The inactive ones stay visibly OPENABLE — the layering only works if
+ a reader can see the rest exists without being asked to climb it. */
+.tour-chapters { display: flex; gap: 8px; margin: 12px 0 4px; flex-wrap: wrap; }
+.tour-chapter {
+ flex: 1 1 150px; min-width: 0; text-align: left;
+ font: inherit; cursor: pointer;
+ display: flex; flex-direction: column; gap: 2px;
+ background: #fff; border: 1px solid var(--line); border-radius: 10px;
+ padding: 8px 11px;
+}
+.tour-chapter b { font-size: 13px; }
+.tour-chapter .muted { font-size: 11px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tour-chapter:hover { background: var(--teal-soft); }
+.tour-chapter.done { border-color: rgba(101, 88, 230, 0.4); }
+.tour-chapter.on { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
+.tour-chapter.on b { color: var(--teal); }
+
+/* The fold: the deeper layer, priced at one click. A <details> so it needs no
+ script and remembers nothing — closed on every step is the point. */
+.tour-more { margin-top: 14px; border: 1px dashed var(--line); border-radius: 10px; background: #fbfcfe; }
+.tour-more summary {
+ cursor: pointer; padding: 9px 13px; font-size: 13px; font-weight: 600;
+ color: var(--ink-soft); user-select: none; list-style-position: inside;
+}
+.tour-more summary:hover { color: var(--ink); }
+.tour-more[open] summary { border-bottom: 1px dashed var(--line); }
+.tour-more-body { padding: 11px 14px; }
+.tour-more-body p { margin: 0 0 9px; font-size: 13.5px; line-height: 1.62; }
+.tour-more-body p:last-child { margin-bottom: 0; }
+
+/* Pictures of CONTROLS (§18) — the Level Maker guide's mock-ups of the
+ right-click menu and of a slider you can type into. They are built from the
+ editor's own classes, so all this does is take a menu that normally floats
+ under the cursor and stand it still in the middle of a page: drop the
+ absolute positioning and the scroll ceiling, keep every other property, and
+ let the real rules draw it. Nothing here restyles a control — the moment it
+ did, the picture would stop being a picture of the thing. */
+.tour-menu-wrap { display: flex; justify-content: center; }
+.tour-menu {
+ position: static; max-height: none; overflow: visible;
+ width: max-content; max-width: 100%;
+ cursor: default;
+}
+.tour-menu-narrow { min-width: 0; width: 100%; }
+/* Inert: the mock is a photograph, and a hover state that lights up invites a
+ click that will do nothing. */
+.tour-menu .ctx-item:hover, .tour-menu .ctx-tool:hover,
+.tour-menu .tex-swatch:hover { background: transparent; border-color: var(--line); }
+.tour-menu .ctx-tool.active { background: var(--teal); border-color: var(--teal); }
+.tour-menu .tex-swatch.active { outline: 2px solid var(--teal); border-color: var(--teal); }
+.tour-menu .ctx-item, .tour-menu .ctx-tool, .tour-menu .tex-swatch,
+.tour-menu .dial-name, .tour-menu input { cursor: default; }
+.tour-pair > .tour-panel > .tour-menu { align-self: stretch; }
+
+/* The hands-on step (§18): a canvas that takes input, so the browser must not
+ scroll or zoom over it — the same contract the real editor's canvas has. */
+.try-canvas { touch-action: none; cursor: crosshair; user-select: none; }
+.try-wrap { max-width: 560px; margin: 0 auto; }
+.try-tools { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; justify-content: center; }
+.try-tools .btn { padding: 7px 11px; font-size: 13px; touch-action: manipulation; }
+.try-tool.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+@media (max-width: 620px) {
+ .tour-title { font-size: 21px; }
+ .tour-trio .tour-panel { flex: 1 1 100%; }
+ .tour-chapter { flex: 1 1 100%; }
+ /* The three parts stay side by side as long as they can, because they are
+ the page's navigation and a stack of three reads as a list of articles.
+ Below this the taglines are what go, not the row. */
+ .tour-part { flex: 1 1 90px; padding: 8px 9px; }
+ .tour-part b { font-size: 13px; }
+ .tour-part .muted { display: none; }
+}
+.learn-steps { margin: 10px 0; padding-left: 22px; font-size: 13.5px; line-height: 1.7; }
+.piece-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.piece-fig {
+ display: flex; flex-direction: column; align-items: center; gap: 4px;
+ background: #fff; border: 1px solid var(--line); border-radius: 10px;
+ padding: 8px 10px 7px; width: 118px; text-align: center;
+}
+.piece-fig canvas { width: 92px; height: 78px; }
+.piece-fig span { font-size: 11px; color: var(--ink-soft); line-height: 1.35; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 9px; }
+.badge-card {
+ display: flex; gap: 9px; align-items: flex-start;
+ background: #fff; border: 1px solid var(--line); border-radius: 10px;
+ padding: 9px 11px; font-size: 12.5px; line-height: 1.45;
+}
+/* A drawn badge (badgeGlyph) — the svg carries its own size, so this only has
+ to stop the inline box adding a descender gap under it. */
+.badge-glyph { display: inline-flex; line-height: 0; }
+/* The tutorial's badge cards and the filter bar's buttons both hold a REAL
+ badge now, so a negative one wears its ring wherever it appears. Both used
+ to hold a bare glyph, which on the "No Power" card meant a plain ⚡ sitting
+ beside the words saying the opposite. Sized up a little on the card, where
+ it is the illustration rather than a marker in a row. */
+.badge-card .badge { width: 32px; height: 32px; font-size: 17px; flex: 0 0 auto; margin: 0; cursor: default; }
+.badge-card .badge.neg { font-size: 19px; }
+.badge-card .badge .badge-glyph svg { width: 19px; height: 19px; }
+.badge-btn { display: inline-flex; align-items: center; justify-content: center; }
+.badge-btn .badge { margin: 0; cursor: inherit; }
+
+/* Scenery dials on the background menu (§10.5) — laid on the same lattice as
+ the swatch grid above them so the menu reads as one widget. */
+.ctx-slider { display: flex; align-items: center; gap: 8px; padding: 3px 6px; font-size: 12px; }
+.ctx-slider > span:first-child { flex: 0 0 46px; opacity: .8; }
+.ctx-slider input[type=range] { flex: 1 1 auto; min-width: 90px; }
+.ctx-slider-val { flex: 0 0 34px; text-align: right; font-variant-numeric: tabular-nums; opacity: .7; }
+
+/* The visibility dropdown in a spreadsheet cell — compact enough to sit in
+ the column the icon used to occupy alone. */
+.vis-select { font-size: 11px; padding: 2px 4px; width: auto; max-width: 116px; }
+
+/* ---------- support: contacts & donations ---------- */
+
+.support { max-width: 720px; }
+.support-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; margin-top: 10px; }
+.support-card {
+ flex: 1 1 240px; min-width: 0;
+ display: flex; flex-direction: column; align-items: flex-start; gap: 7px;
+ background: #fff; border: 1px solid var(--line); border-radius: 12px;
+ padding: 14px 16px;
+ color: var(--ink); text-decoration: none;
+ font-size: 13.5px; line-height: 1.5;
+}
+a.support-card:hover { border-color: var(--teal); box-shadow: 0 4px 16px rgba(35, 42, 53, 0.08); }
+.support-card b { font-size: 15px; }
+/* An address is a thing you READ AND RETYPE, so it never wraps mid-string,
+ never ellipsizes, and scrolls instead when the card is narrower than it —
+ a Bitcoin address with a hidden middle is indistinguishable from the
+ wrong one. */
+.support-addr {
+ font-family: ui-monospace, Consolas, monospace; font-size: 12.5px;
+ color: var(--teal); max-width: 100%; overflow-x: auto; white-space: nowrap;
+}
+.support-btc .support-addr { color: var(--ink-soft); }
+.support-qr {
+ width: 156px; height: 156px; border: 1px solid var(--line); border-radius: 8px;
+ background: #fff; align-self: center;
+}
+
+/* ---------- touch (§19) ---------- */
+
+/* The modifier latches on the toolbar — the touch stand-ins for held keys.
+ Dashed border while off so they read as "state you can set" rather than a
+ fourth wheel tool; solid amber while latched, deliberately NOT the teal an
+ active tool wears, because a latch left on changes what every gesture means
+ and must not fade into the furniture. */
+.mod-latch { border-style: dashed; }
+.mod-latch .tool-label { font-size: calc(12px * var(--bar-scale, 1)); font-weight: 700; }
+.mod-latch.active { background: var(--gold, #d4a017); border-color: var(--gold, #d4a017); border-style: solid; }
+.mod-latch.active .tool-label { color: #fff; }
+
+/* Double-tapping a button must zoom nothing — `manipulation` keeps taps and
+ pans and drops the browser's double-tap-zoom on the whole HUD. The canvas
+ itself is already `touch-action: none` (it owns its gestures outright). */
+.hud, .hud button, .btn, .tool, .tab, .ctx-menu, .modal-overlay { touch-action: manipulation; }
+
+/* Fingers, not cursors — but a phone is SMALL before its pointer is fat
+ ("I think they need to take up less space on a phone", 2026-08-06). The
+ first cut grew every control toward a 44 px floor and the HUD swallowed the
+ level. So: the CONTENT runs compact — tighter than desktop, since a phone
+ player taps deliberately — and the size budget is spent where the finger
+ genuinely needs it: the GRIPS that drag the bars, and the transient menus,
+ which cover the world only while open. */
+@media (pointer: coarse) {
+ /* **A phone opts OUT of the 20% shrink** (2026-08-11). Every number in this
+ block is a finger measurement — the grips deliberately GROW here, because
+ a grip you cannot hit is a bar you cannot move — and this block only sets
+ some of them; without this line the rest of the bar would scale under
+ them and the tuning would come apart at the seams. The desktop request was
+ about a mouse pointer's bar, so it applies to the mouse pointer's bar. */
+ .toolbar-wrap { --bar-scale: 1; }
+ .tool { width: 42px; height: 36px; }
+ .tool-label { font-size: 15px; }
+ .mod-latch .tool-label { font-size: 11px; }
+ .ctx-item { padding: 10px 12px; font-size: 13.5px; }
+ .ctx-menu { max-height: 70vh; overflow-y: auto; }
+ .dock-inner { gap: 5px; }
+ .dock-inner .btn { padding: 7px 9px; font-size: 13px; }
+ .dock-stat { font-size: 11px; padding: 0 2px; }
+ .dock-speed { width: 56px; }
+ .info-chip, .align-chip { font-size: 11px; }
+ /* the drag handles are the one thing that GROWS: a grip you cannot hit is
+ a bar you cannot move, and these are what "don't drag nicely" was */
+ .toolbar-grip, .toolbar-orient { padding: 8px 9px; font-size: 15px; }
+ .chip-grip { padding: 8px 7px; }
+ /* …except on a HORIZONTAL bar, where the header is a stacked column beside
+ one short row of buttons — full-grown grips there made the dock an 89 px
+ slab whose handle was taller than its contents */
+ .toolbar-wrap.horizontal .toolbar-grip, .toolbar-wrap.horizontal .toolbar-orient { padding: 3px 8px; }
+ /* …and trimmed on a VERTICAL bar too, where grip + orient sit side by side:
+ at full size that row ran 61 px over 42 px tools, and the HEADER — not
+ the scrollbar — was what widened the whole bar ("can we shrink the
+ toolbars", 2026-08-06). The bar now hugs its tools. */
+ .toolbar-wrap.vertical .toolbar-grip, .toolbar-wrap.vertical .toolbar-orient { padding: 5px 6px; font-size: 13px; }
+ /* the grip GROWS INTO the header rather than the header growing the bar:
+ the whole strip is the drag surface now, so give the thumb a strip
+ worth aiming at */
+ .toolbar-header .toolbar-grip { flex: 1 1 auto; }
+ .toolbar-wrap.vertical .toolbar-header { min-height: 30px; }
+ .toolbar-wrap.horizontal .toolbar-header { min-width: 26px; }
+ .toolbar-wrap { padding: 4px; }
+ /* the endpoint dots and rotate knobs are drawn by the canvas and sized in
+ code; the HUD is what CSS can size */
+ /* Coarse hands the top-left corner to the nav knob (§ the nav gets out of
+ the way): `‹ Back` goes — the nav one tap behind the knob is every way
+ out at once — and the bar starts past the knob's seat, not under it.
+ Down HERE because the base `.hud-top` shorthand above would win the
+ padding back from the knob's own block. */
+ .hud-back { display: none; }
+ .hud-top { padding-left: 58px; }
+}
+
+/* A phone is narrow before it is coarse: the top bar keeps every door but
+ lets the row scroll sideways rather than stacking over the canvas, and the
+ level's name yields first. */
+@media (max-width: 720px) {
+ .hud-top { overflow-x: auto; scrollbar-width: none; }
+ .hud-top::-webkit-scrollbar { display: none; }
+ .hud-top > * { flex-shrink: 0; }
+ .level-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+ .hud-top .btn { padding: 8px 9px; font-size: 13px; }
+}
+
+/* The spreadsheet hover thumbnail — a floating card beside the row, never
+ interactive (pointer-events none, so it cannot steal the hover that
+ summoned it). Above the info-screen (200), below modals (450). */
+.hover-thumb {
+ position: fixed; z-index: 300; pointer-events: none;
+ background: #fff; border: 1px solid var(--line); border-radius: 10px;
+ padding: 4px; box-shadow: 0 8px 28px rgba(35, 42, 53, 0.18);
+}
+.hover-thumb-img, .hover-thumb-canvas { display: block; width: 288px; height: auto; border-radius: 7px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ THE HUD OVERRIDE LAYER — last, because it is an override.
+ Declared beside the tokens first, where it lost every cascade it cared
+ about: `.toolbar-wrap` sets `border: 1px solid var(--line)` in its own
+ rule six hundred lines further down, and one class beats one class by
+ coming later. Measured, not assumed — the toolbar's border stayed
+ #dfe4ef through both themes until this moved.
+ ═══════════════════════════════════════════════════════════════════════ */
+/* ---------- what stands ON the plate follows it ----------
+ A plate that changes colour and ink that does not is a dark slab with dark
+ writing on it. These eleven surfaces and their contents take the plate's
+ own ink and its own edge; everything else in the app — cards, prose, the
+ document pages — is unaffected, because a page is paper and a HUD panel is
+ a thing floating over a level of arbitrary colour, and they do not have the
+ same problem. */
+.toolbar-wrap, .tool-fan, .all-menus-dot, .dock-scrub-row, .align-chip,
+.info-chip, .bind-chip, .win-banner, .chal-hud, .build-note, .info-bar, .nav-knob {
+ color: var(--plate-ink);
+ border-color: var(--plate-edge);
+}
+.toolbar-wrap .btn, .tool-fan .btn, .dock-scrub-row .btn, .align-chip .btn,
+.info-bar .btn, .chal-hud .btn,
+.toolbar-wrap .tool, .tool-fan .tool {
+ color: var(--plate-ink);
+ border-color: var(--plate-edge);
+}
+.toolbar-wrap .chip-label, .align-chip .chip-label, .info-chip .chip-fps,
+.info-chip .chip-note, .dock-scrub-row .dock-unit, .toolbar-wrap .tool-key,
+.toolbar-wrap .bar-key, .align-chip .chip-note {
+ color: var(--plate-ink-soft);
+}
+
+/* ---------- the dock: one hero, not four equals (2026-08-23) ----------
+ Four readouts sat at the same 14 px over the same 9.5 px unit in the same
+ reserved column — pcs, kg, fixed, secs — and during a run exactly ONE of
+ them moves. pcs, kg and fixed change on edit and are then still for the
+ whole run; the clock is the only figure doing anything, and the eye had no
+ way to know that without reading all four.
+
+ So the clock becomes the hero and the census steps back. No markup moved:
+ `.dock-time` was already on the one that counts.
+
+ `tabular-nums` is not decoration either — a proportional clock shifts its
+ own digits sideways as it counts, which is precisely the readout you are
+ staring at while it does. */
+.dock-time .dock-val {
+ font-size: max(17px, calc(21px * var(--bar-scale, 1)));
+ font-variant-numeric: tabular-nums;
+ letter-spacing: -.012em;
+}
+.dock-time { min-width: calc(62px * var(--bar-scale, 1)); }
+/* 13, not 12: at --bar-scale .8 the smaller one computed to 9.6 px against a
+ 9.5 px unit beneath it, so the figure and its own label were the same size
+ and the pair stopped reading as a value with a caption. */
+.dock-stat.stacked:not(.dock-time) .dock-val {
+ font-size: max(11.5px, calc(13px * var(--bar-scale, 1)));
+ font-weight: 600;
+ color: var(--ink-soft);
+}
+.dock-stat.stacked:not(.dock-time) .dock-unit { opacity: .78; }
+
+/* ---------- the tool key gets a plate (2026-08-23) ----------
+ It was bare text sitting directly on the icon's own box, in ink-soft, at
+ 7.2 px once --bar-scale had multiplied it. Two problems at once: it was
+ under any legibility floor, and it was competing with the glyph it sits on
+ rather than labelling it.
+
+ The floor is now 9.5 px (see --hud-type-min) and the badge is a badge — its
+ own small plate, so it reads as a label attached to the button instead of a
+ mark drawn on the tool. It also stops the letter and the number bindings
+ dissolving into a busy icon like the wheel's spokes.
+
+ Deliberately NOT hidden on touch: `showsKeyHints` already removes it
+ wherever there is no keyboard to press, which is the right rule and is
+ decided in util.js where a gate can reach it. */
+.tool-key {
+ padding: 0 calc(2.5px * var(--bar-scale, 1));
+ border-radius: calc(3px * var(--bar-scale, 1));
+ background: var(--plate-2, #f0f3f9);
+ border: 1px solid var(--plate-edge, rgba(35, 42, 53, .34));
+ /* 1.15, measured: at 1.35 the badge boxed out to 15 px in a 32 px cell —
+ nearly half the button's height for a one-character label. */
+ line-height: 1.15;
+ font-weight: 700;
+ font-variant-numeric: tabular-nums;
+}
+/* on the lit button the plate inverts with it, rather than staying a pale
+ sticker on an accent fill */
+.tool.active .tool-key {
+ background: rgba(255, 255, 255, .22);
+ border-color: rgba(255, 255, 255, .34);
+ color: #fff;
+}
+
+/* ---------- the modifier readout (§8.2) ----------
+
+ Bottom-centre, and the 110 is MEASURED rather than chosen. Bottom-centre was
+ the obvious slot and the obvious slot was wrong: the play dock's home is
+ 355-745 x 582-626 on a 1100x640 editor, so a chip at `bottom: 14px` landed
+ inside it. Top-centre is taken twice over (.back-banner at 12, .start-prompt
+ at 96) and the toast owns bottom-centre at 74 -- which is itself the measured
+ clearance above the dock. 110 stacks the chip on the toast's line without
+ displacing it, and centre is the only horizontal position that is never under
+ whatever the pointer is aiming at, which matters for a chip that appears
+ *because* you are aiming at something.
+
+ `pointer-events: none` is not optional here. It follows the pointer's context
+ and would otherwise sit under the cursor at the exact moment a gesture is
+ being armed, eating the press that the chip is describing. */
+.mod-chip {
+ left: 50%;
+ bottom: 110px;
+ transform: translateX(-50%);
+ display: flex;
+ align-items: center;
+ gap: 7px;
+ max-width: min(560px, calc(100% - 24px));
+ padding: 5px 11px 5px 6px;
+ border: 1px solid var(--plate-edge, var(--line));
+ border-radius: 999px;
+ background: var(--plate);
+ box-shadow: var(--shadow);
+ pointer-events: none;
+ /* It appears and disappears under the hand, many times a minute. A fade is
+ what stops that reading as a flicker; 90 ms is short enough that the chip
+ is legible before the modifier has finished being pressed. */
+ animation: mod-chip-in 90ms ease-out;
+}
+@keyframes mod-chip-in {
+ from { opacity: 0; transform: translateX(-50%) translateY(3px); }
+ to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+/* An editor is used with the hand on the keyboard, and a chip that slides on
+ every keypress is the kind of motion this setting exists to stand down. */
+@media (prefers-reduced-motion: reduce) {
+ .mod-chip { animation: none; }
+}
+.mod-chip-keys {
+ flex: 0 0 auto;
+ font: 600 max(var(--hud-type-min), calc(11.5px * var(--bar-scale, 1))) var(--font);
+ background: var(--paper-dim);
+ border: 1px solid var(--line);
+ border-bottom-width: 2px;
+ border-radius: 999px;
+ padding: 2px 9px;
+ color: var(--ink);
+ white-space: nowrap;
+}
+.mod-chip-label {
+ min-width: 0;
+ font: 600 max(var(--hud-type-min), calc(12px * var(--bar-scale, 1))) var(--font);
+ color: var(--ink-soft);
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+}
+
+/* ---------- the alignment lines a magnetic bar draws (§19) ----------
+
+ Drawn only while a bar is being dragged, and gone the instant it is dropped:
+ they explain WHY the bar stopped where it did, which is a question you only
+ have while your hand is still on it.
+
+ `pointer-events: none` on the layer AND on the lines. The layer covers the
+ whole editor, so without it the first alignment line would swallow the rest
+ of the drag — the pointer is captured, but the guides also sit over the
+ canvas and would eat every hover after the drop. */
+.bar-guides {
+ position: absolute;
+ inset: 0;
+ z-index: 11; /* just above .hud's 10, so a line crosses the bars */
+ pointer-events: none;
+ overflow: hidden;
+}
+.bar-guide {
+ position: absolute;
+ pointer-events: none;
+ background: var(--focus, #6b5cff);
+}
+.bar-guide-x { width: 1px; }
+.bar-guide-y { height: 1px; }
+/* Three kinds, and they are told apart by WEIGHT rather than by colour. A
+ second hue here would be a fifth violet in an editor that already draws four
+ dashed ones (selection, group, multi-select, the fence), and the question a
+ guide answers — "which line did I catch" — is answered by where it is, not by
+ what colour it is. */
+.bar-guide-view { opacity: 0.9; }
+.bar-guide-edge { opacity: 0.75; }
+.bar-guide-centre { opacity: 0.5; }
+.bar-guide-centre.bar-guide-x { width: 1px; background: repeating-linear-gradient(
+ to bottom, var(--focus, #6b5cff) 0 6px, transparent 6px 12px); }
+.bar-guide-centre.bar-guide-y { height: 1px; background: repeating-linear-gradient(
+ to right, var(--focus, #6b5cff) 0 6px, transparent 6px 12px); }
+
+/* ---------- the family pip row (2026-08-23) ----------
+
+ A Terrain, Prop or Goal button stands for two or three pieces, and until now
+ it gave no sign of that at all: the title names the next member, but a title
+ is something you have to go and ask for. One pip per member along the top
+ edge, the current one filled — so the button says how many there are AND
+ which one it is showing, without a second glyph competing with the icon.
+
+ The top edge because both bottom corners are taken (.tool-key bottom-right,
+ .tool-letter bottom-left), and a horizontal row either way up so the toolbar
+ can still be turned vertical.
+
+ FOUR px, not three, and the current one is a PILL rather than a brighter
+ dot. Both were measured:
+
+ · A 3 px base is 2.4 px at --bar-scale 0.8, and a 2.4 px circle's contrast
+ swings with where it lands in the pixel grid — 5.72:1 to 5.98:1 across one
+ pixel of sub-pixel phase, so the same pip looks different on different
+ buttons. At 3.2 px (4 × 0.8) the swing is exactly zero.
+
+ · Opacity alone cannot carry the state. An off pip has to clear 3:1 against
+ the button to be COUNTABLE at all, and the first opacity that does is 0.75
+ (0.34 gives 1.64:1, which is invisible) — but at 0.75 against the on pip's
+ 5.98:1 the two states are barely a stop apart. So the state is LENGTH: the
+ current member is a pill, the others are dots. Same reasoning the
+ difficulty bar above already runs on ("Length answers how hard"), and the
+ same reason the active tool gets a broken rail line rather than a tint —
+ shape reads before brightness.
+
+ The gap keeps a whole-pixel floor regardless, or three pips merge into a
+ dash and the count is gone. */
+.tool-fam-pips {
+ position: absolute;
+ top: calc(3px * var(--bar-scale, 1));
+ left: 50%;
+ transform: translateX(-50%);
+ display: flex;
+ align-items: center;
+ gap: max(1px, calc(2px * var(--bar-scale, 1)));
+ pointer-events: none;
+}
+.tool-fam-pip {
+ width: max(3px, calc(4px * var(--bar-scale, 1)));
+ height: max(3px, calc(4px * var(--bar-scale, 1)));
+ border-radius: 999px;
+ background: var(--ink-soft);
+ opacity: 0.75; /* 3.44:1 — countable, see above */
+}
+.tool-fam-pip.on { width: max(8px, calc(10px * var(--bar-scale, 1))); opacity: 1; }
+/* On the active button the plate is teal and the ink goes white with it, so the
+ pips have to follow or they disappear into the fill. */
+.tool.active .tool-fam-pip { background: #fff; opacity: 0.6; }
+.tool.active .tool-fam-pip.on { opacity: 1; }
+
+/* ---------- the running dock (2026-08-23) ----------
+
+ While the machine runs the play bar is a transport: stop, record, the
+ timeline, the clock. Reset, undo, redo, fit and the census are all
+ edits-in-waiting — the Maker stops on any keystroke for exactly this
+ reason — so their space belongs to the scrub line until the run ends.
+
+ Hidden, not removed, for the same reason the brief mode hides its four:
+ these are live buttons the rest of the editor enables and disables, and a
+ DOM that loses them would mean teaching every caller they might not exist. */
+.dock-running .dock-mini,
+.dock-running .dock-stat:not(.dock-time):not(.scrub-time) { display: none; }
+/* Brief-during-play stays the idle chip's size. The inline scrubber's 160 px
+ floor is what overflowed that box; here it takes only the columns pcs/kg
+ vacated, and the inner does not wrap under the pinned height. */
+.toolbar-wrap.horizontal.dock-running .dock-inner { flex-wrap: nowrap; }
+.toolbar-wrap:not(.dock-expanded).dock-running .dock-scrub-row.inline {
+ min-width: 0;
+}
+.toolbar-wrap:not(.dock-expanded).dock-running .dock-scrub-row.inline .dock-scrub {
+ min-width: 0;
+}
+/* the row, inline: a flex child like its neighbours, stretching over the
+ space the buttons left — position/border/shadow all stand down because the
+ bar it used to float beside is now the bar it is in */
+.dock-scrub-row.inline {
+ position: static;
+ flex: 1 1 auto;
+ min-width: 160px;
+ height: auto;
+ padding: 0 4px;
+ background: none;
+ border: none;
+ box-shadow: none;
+ /* live / parked time under the track (2026-08-25), not beside it — the
+ idle chip's height already has room for a range plus a caption. */
+ flex-direction: column;
+ align-items: stretch;
+ justify-content: center;
+ gap: 1px;
+}
+.dock-scrub-row.inline .dock-scrub { width: 100%; min-width: 0; }
+.dock-scrub-row.inline .scrub-time {
+ min-width: 0;
+ text-align: center;
+ line-height: 1;
+ font-size: max(var(--hud-type-min), calc(10px * var(--bar-scale, 1)));
+}
+
+/* ---------- the interface pills (settings, 2026-08-23) ---------- */
+.set-pills { display: flex; gap: 8px; margin: 6px 0 14px; }
+.set-pills .btn.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+/* An EXPLICIT density beats both detections — the desktop's 0.8 and the
+ coarse-pointer 1 — the same rule data-hud follows for the theme: a
+ preference outranks a detection in either direction. At the end of the
+ file, because the coarse @media rule must lose to these on order as well
+ as on specificity. */
+#app[data-density="cozy"] .toolbar-wrap { --bar-scale: 0.9; }
+#app[data-density="touch"] .toolbar-wrap { --bar-scale: 1; }
+
+/* ---------- THE DARK FOLLOWS THROUGH (2026-08-24) ----------
+
+ On report, with a screenshot: "The DARK does not follow through..." — the
+ dock's plate went dark and every control ON it stayed light: pale button
+ pills, and the SECS readout resolving to dark ink on the dark plate,
+ invisible. The audit found ~80 rules inside HUD surfaces still reading the
+ SITE palette (--ink, --line, --paper...), which the dark block never touches.
+
+ Rather than retokenise eighty rules one by one — and re-make this bug with
+ the next control anyone adds — the SITE tokens are REMAPPED to their plate
+ twins inside every HUD scope. In light mode this is a near-no-op by
+ construction: --ink and --ink-soft are byte-identical to --plate-ink and
+ --plate-ink-soft, --paper IS --plate-solid, and --paper-dim is within four
+ channel-points of --plate-2. The one real light-mode change is --line →
+ --plate-edge, 1.22:1 → 3:1, which is the upgrade the plate block's own
+ comment argues for ("the border can finally be seen without the shadow").
+
+ .tip and .toast are deliberately ABSENT: they are inverted surfaces — ink
+ plates with light text in both themes — and remapping their tokens would
+ un-invert them. */
+.toolbar-wrap, .ctx-menu, .tool-fan, .hud-top, .start-prompt, .win-banner,
+.chal-hud, .mod-chip, .align-chip, .info-chip, .bind-chip, .dock-scrub-row, .back-banner,
+.hover-thumb, .build-note, .return-note, .nav-knob, .all-menus-dot {
+ --ink: var(--plate-ink);
+ --ink-soft: var(--plate-ink-soft);
+ --line: var(--plate-edge);
+ --paper: var(--plate-solid);
+ --paper-dim: var(--plate-2);
+ color: var(--plate-ink);
+}

@@ -1,0 +1,6 @@
+# Line endings in this tree are DELIBERATE and mixed — most files are LF, a
+# named set is CRLF (the Windows-native scripts, and sources whose endings a
+# gate asserts byte-for-byte; see the CRLF allowlist in verify-editor.mjs).
+# Git must never convert them in either direction, on any platform, or a fresh
+# clone fails its own gates before a line of code has changed.
+* -text

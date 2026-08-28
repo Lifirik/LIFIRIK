@@ -1,0 +1,32 @@
+node_modules/
+
+# THE DATASTORE — never commit this. It holds password hashes and their
+# per-user salts, live session tokens, and email addresses. Committing it puts
+# real credentials in your history forever, and pushing it anywhere public is a
+# breach. A fresh checkout doesn't need it: `npm run seed` builds one.
+data/db.sqlite
+data/db.sqlite-wal
+data/db.sqlite-shm
+data/db.json
+data/db.export.json
+data/*.bak
+data/*.tmp-*
+
+# secrets / local config
+.env
+.env.*
+
+# build output
+dist/
+build/
+Production/
+
+# OS + editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.grok/
+.playwright-mcp/
+
+# engine compile scratch (engine/build.sh writes here, then links wasm)
+engine/obj/

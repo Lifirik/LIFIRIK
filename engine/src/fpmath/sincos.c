@@ -1,0 +1,520 @@
+#include <stdint.h>
+#include <math.h>
+#include <fpmath/fpmath.h>
+
+union tab_t {
+	uint64_t x[256];
+	double   d[256];
+};
+
+static union tab_t tab;
+
+static double c0  = -0.16666666666666666;
+static double c1  = -0.5;
+static double c2  =  0.008333333333333333;
+static double c3  =  0.041666666666666664;
+static double c4  = -0.0001984126984126984;
+static double c5  = -0.001388888888888889;
+static double c6  =  2.7557319223985893e-06;
+static double c7  =  2.48015873015873e-05;
+static double c8  =  10.185916357881302;
+static double c9  =  6755399441055744.0;
+static double c10 =  3.798187816439979e-12;
+static double c11 =  3.798187816439979e-12;
+static double c12 =  0.09817477042088285;
+static double c13 =  1.2639164054974691e-22;
+
+static double fp_sincos(double x, int off)
+{
+	double x0, x1, x2, x3, x4, x5, x6, x7;
+	double x0h, x1h, x2h, x5h, x6h;
+	int idx;
+	double *ptr;
+
+	x0 = x;
+	x1 = c8;
+	x1 *= x0;
+	x2 = c9;
+	idx = rint(x1);
+	x1 += x2;
+	x3 = c12;
+	x1 -= x2;
+	x2 = c10;
+	x2h = c11;
+	x3 *= x1;
+	x1h = x1;
+	idx += off;
+	x4 = x0;
+	idx &= 0x3f;
+	x5 = c6;
+	x5h = c7;
+	ptr = &tab.d[idx << 2];
+	x2 *= x1;
+	x2h *= x1h;
+	x0 -= x3;
+	x1 *= c13;
+	x4 -= x3;
+	x7 = ptr[1];
+	x0h = x0;
+	x3 = x4;
+	x4 -= x2;
+	x5 *= x0;
+	x5h *= x0h;
+	x0 -= x2;
+	x0h -= x2h;
+	x6 = c2;
+	x6h = c3;
+	x7 *= x4;
+	x3 -= x4;
+	x5 *= x0;
+	x5h *= x0h;
+	x0 *= x0;
+	x0h *= x0h;
+	x3 -= x2;
+	x2 = ptr[0];
+	x2h = ptr[1];
+	x1 -= x3;
+	x3 = ptr[3];
+	x2 += x3;
+	x7 -= x2;
+	x2 *= x4;
+	x6 *= x0;
+	x6h *= x0h;
+	x3 *= x4;
+	x2 *= x0;
+	x2h *= x0h;
+	x0 *= x0;
+	x0h *= x0h;
+	x5 += c4;
+	x5h += c5;
+	x4 *= ptr[0];
+	x6 += c0;
+	x6h += c1;
+	x5 *= x0;
+	x5h *= x0h;
+	x0 = x3;
+	x3 += ptr[1];
+	x1 *= x7;
+	x7 = x4;
+	x4 += x3;
+	x6 += x5;
+	x6h += x5h;
+	x5 = ptr[1];
+	x5 -= x3;
+	x3 -= x4;
+	x1 += ptr[2];
+	x6 *= x2;
+	x6h *= x2h;
+	x5 += x0;
+	x3 += x7;
+	x1 += x5;
+	x1 += x3;
+	x1 += x6;
+	x6 = x6h;
+	x1 += x6;
+	x4 += x1;
+	x0 = x4;
+	return x0;
+}
+
+double fp_sin(double x)
+{
+	return fp_sincos(x, 0);
+}
+
+double fp_cos(double x)
+{
+	return fp_sincos(x, 0x10);
+}
+
+/* fp_sincos, split. Everything above the table lookup is a function of x
+ * alone — the argument reduction, its error terms, and the two polynomials —
+ * and `off` reaches only the table index. A machine's rotation matrix wants
+ * BOTH the sine and the cosine of the same angle, so the shared half is
+ * computed once and the table-dependent tail run twice. Not an approximation
+ * and not a reassociation: the same operations on the same doubles in the
+ * same order, so both results are bit-identical to fp_sin/fp_cos. */
+static double fp_sincos_tail(const double *ptr, double r, double r2, double r2h,
+			     double poly, double polyh, double corr)
+{
+	double x0, x1, x2, x3, x4, x5, x6, x7;
+	double x2h, x6h;
+
+	x4 = r;
+	x7 = ptr[1];
+	x7 *= x4;
+	x2 = ptr[0];
+	x2h = ptr[1];
+	x3 = ptr[3];
+	x2 += x3;
+	x7 -= x2;
+	x2 *= x4;
+	x3 *= x4;
+	x2 *= r2;
+	x2h *= r2h;
+	x4 *= ptr[0];
+	x0 = x3;
+	x3 += ptr[1];
+	x1 = corr;
+	x1 *= x7;
+	x7 = x4;
+	x4 += x3;
+	x5 = ptr[1];
+	x5 -= x3;
+	x3 -= x4;
+	x1 += ptr[2];
+	x6 = poly;
+	x6h = polyh;
+	x6 *= x2;
+	x6h *= x2h;
+	x5 += x0;
+	x3 += x7;
+	x1 += x5;
+	x1 += x3;
+	x1 += x6;
+	x6 = x6h;
+	x1 += x6;
+	x4 += x1;
+	return x4;
+}
+
+void fp_sincos2(double x, double *sn, double *cs)
+{
+	double x0, x1, x2, x3, x4, x5, x6;
+	double x0h, x1h, x2h, x5h, x6h;
+	double r, r2, r2h, corr, poly, polyh;
+	int idx;
+
+	x0 = x;
+	x1 = c8;
+	x1 *= x0;
+	x2 = c9;
+	idx = rint(x1);
+	x1 += x2;
+	x3 = c12;
+	x1 -= x2;
+	x2 = c10;
+	x2h = c11;
+	x3 *= x1;
+	x1h = x1;
+	x4 = x0;
+	x5 = c6;
+	x5h = c7;
+	x2 *= x1;
+	x2h *= x1h;
+	x0 -= x3;
+	x1 *= c13;
+	x4 -= x3;
+	x0h = x0;
+	x3 = x4;
+	x4 -= x2;
+	x5 *= x0;
+	x5h *= x0h;
+	x0 -= x2;
+	x0h -= x2h;
+	x6 = c2;
+	x6h = c3;
+	x3 -= x4;
+	x5 *= x0;
+	x5h *= x0h;
+	x0 *= x0;
+	x0h *= x0h;
+	x3 -= x2;
+	x1 -= x3;
+	r = x4;
+	r2 = x0;
+	r2h = x0h;
+	corr = x1;
+	x6 *= x0;
+	x6h *= x0h;
+	x0 *= x0;
+	x0h *= x0h;
+	x5 += c4;
+	x5h += c5;
+	x6 += c0;
+	x6h += c1;
+	x5 *= x0;
+	x5h *= x0h;
+	x6 += x5;
+	x6h += x5h;
+	poly = x6;
+	polyh = x6h;
+
+	*sn = fp_sincos_tail(&tab.d[(idx & 0x3f) << 2], r, r2, r2h, poly, polyh, corr);
+	*cs = fp_sincos_tail(&tab.d[((idx + 0x10) & 0x3f) << 2], r, r2, r2h, poly, polyh, corr);
+}
+
+/* self-test: every argument, both ways, compared as BITS */
+double check_pair(double n, double scale)
+{
+	union { double d; uint64_t u; } a, b;
+	double bad = 0.0, s, c, i;
+
+	for (i = -n; i < n; i += 1.0) {
+		fp_sincos2(i * scale, &s, &c);
+		a.d = s; b.d = fp_sin(i * scale);
+		if (a.u != b.u) bad += 1.0;
+		a.d = c; b.d = fp_cos(i * scale);
+		if (a.u != b.u) bad += 1.0;
+	}
+	return bad;
+}
+
+static union tab_t tab = { .x = {
+	0x0000000000000000,
+	0x0000000000000000,
+	0x0000000000000000,
+	0x3FF0000000000000,
+	0xBF73B92E176D6D31,
+	0x3FB917A6BC29B42C,
+	0xBC3E2718E0000000,
+	0x3FF0000000000000,
+	0xBF93AD06011469FB,
+	0x3FC8F8B83C69A60B,
+	0xBC626D19C0000000,
+	0x3FF0000000000000,
+	0xBFA60BEA939D225A,
+	0x3FD294062ED59F06,
+	0xBC75D28DA0000000,
+	0x3FF0000000000000,
+	0xBFB37CA1866B95CF,
+	0x3FD87DE2A6AEA963,
+	0xBC672CEDE0000000,
+	0x3FF0000000000000,
+	0xBFBE3A6873FA1279,
+	0x3FDE2B5D3806F63B,
+	0x3C5E0D8920000000,
+	0x3FF0000000000000,
+	0xBFC592675BC57974,
+	0x3FE1C73B39AE68C8,
+	0x3C8B25DD20000000,
+	0x3FF0000000000000,
+	0xBFCD0DFE53ABA2FD,
+	0x3FE44CF325091DD6,
+	0x3C68076A20000000,
+	0x3FF0000000000000,
+	0x3FCA827999FCEF32,
+	0x3FE6A09E667F3BCD,
+	0xBC8BDD3420000000,
+	0x3FE0000000000000,
+	0x3FC133CC94247758,
+	0x3FE8BC806B151741,
+	0xBC82C5E120000000,
+	0x3FE0000000000000,
+	0x3FAC73B39AE68C87,
+	0x3FEA9B66290EA1A3,
+	0x3C39F630E0000000,
+	0x3FE0000000000000,
+	0xBF9D4A2C7F909C4E,
+	0x3FEC38B2F180BDB1,
+	0xBC76E0B180000000,
+	0x3FE0000000000000,
+	0xBFBE087565455A75,
+	0x3FED906BCF328D46,
+	0x3C7457E620000000,
+	0x3FE0000000000000,
+	0x3FA4A03176ACF82D,
+	0x3FEE9F4156C62DDA,
+	0x3C8760B1E0000000,
+	0x3FD0000000000000,
+	0xBFAC1D1F0E5967D5,
+	0x3FEF6297CFF75CB0,
+	0x3C75621720000000,
+	0x3FD0000000000000,
+	0xBF9BA1650F592F50,
+	0x3FEFD88DA3D12526,
+	0xBC887DF640000000,
+	0x3FC0000000000000,
+	0x0000000000000000,
+	0x3FF0000000000000,
+	0x0000000000000000,
+	0x0000000000000000,
+	0x3F9BA1650F592F50,
+	0x3FEFD88DA3D12526,
+	0xBC887DF640000000,
+	0xBFC0000000000000,
+	0x3FAC1D1F0E5967D5,
+	0x3FEF6297CFF75CB0,
+	0x3C75621720000000,
+	0xBFD0000000000000,
+	0xBFA4A03176ACF82D,
+	0x3FEE9F4156C62DDA,
+	0x3C8760B1E0000000,
+	0xBFD0000000000000,
+	0x3FBE087565455A75,
+	0x3FED906BCF328D46,
+	0x3C7457E620000000,
+	0xBFE0000000000000,
+	0x3F9D4A2C7F909C4E,
+	0x3FEC38B2F180BDB1,
+	0xBC76E0B180000000,
+	0xBFE0000000000000,
+	0xBFAC73B39AE68C87,
+	0x3FEA9B66290EA1A3,
+	0x3C39F630E0000000,
+	0xBFE0000000000000,
+	0xBFC133CC94247758,
+	0x3FE8BC806B151741,
+	0xBC82C5E120000000,
+	0xBFE0000000000000,
+	0xBFCA827999FCEF32,
+	0x3FE6A09E667F3BCD,
+	0xBC8BDD3420000000,
+	0xBFE0000000000000,
+	0x3FCD0DFE53ABA2FD,
+	0x3FE44CF325091DD6,
+	0x3C68076A20000000,
+	0xBFF0000000000000,
+	0x3FC592675BC57974,
+	0x3FE1C73B39AE68C8,
+	0x3C8B25DD20000000,
+	0xBFF0000000000000,
+	0x3FBE3A6873FA1279,
+	0x3FDE2B5D3806F63B,
+	0x3C5E0D8920000000,
+	0xBFF0000000000000,
+	0x3FB37CA1866B95CF,
+	0x3FD87DE2A6AEA963,
+	0xBC672CEDE0000000,
+	0xBFF0000000000000,
+	0x3FA60BEA939D225A,
+	0x3FD294062ED59F06,
+	0xBC75D28DA0000000,
+	0xBFF0000000000000,
+	0x3F93AD06011469FB,
+	0x3FC8F8B83C69A60B,
+	0xBC626D19C0000000,
+	0xBFF0000000000000,
+	0x3F73B92E176D6D31,
+	0x3FB917A6BC29B42C,
+	0xBC3E2718E0000000,
+	0xBFF0000000000000,
+	0x0000000000000000,
+	0x0000000000000000,
+	0x0000000000000000,
+	0xBFF0000000000000,
+	0x3F73B92E176D6D31,
+	0xBFB917A6BC29B42C,
+	0x3C3E2718E0000000,
+	0xBFF0000000000000,
+	0x3F93AD06011469FB,
+	0xBFC8F8B83C69A60B,
+	0x3C626D19C0000000,
+	0xBFF0000000000000,
+	0x3FA60BEA939D225A,
+	0xBFD294062ED59F06,
+	0x3C75D28DA0000000,
+	0xBFF0000000000000,
+	0x3FB37CA1866B95CF,
+	0xBFD87DE2A6AEA963,
+	0x3C672CEDE0000000,
+	0xBFF0000000000000,
+	0x3FBE3A6873FA1279,
+	0xBFDE2B5D3806F63B,
+	0xBC5E0D8920000000,
+	0xBFF0000000000000,
+	0x3FC592675BC57974,
+	0xBFE1C73B39AE68C8,
+	0xBC8B25DD20000000,
+	0xBFF0000000000000,
+	0x3FCD0DFE53ABA2FD,
+	0xBFE44CF325091DD6,
+	0xBC68076A20000000,
+	0xBFF0000000000000,
+	0xBFCA827999FCEF32,
+	0xBFE6A09E667F3BCD,
+	0x3C8BDD3420000000,
+	0xBFE0000000000000,
+	0xBFC133CC94247758,
+	0xBFE8BC806B151741,
+	0x3C82C5E120000000,
+	0xBFE0000000000000,
+	0xBFAC73B39AE68C87,
+	0xBFEA9B66290EA1A3,
+	0xBC39F630E0000000,
+	0xBFE0000000000000,
+	0x3F9D4A2C7F909C4E,
+	0xBFEC38B2F180BDB1,
+	0x3C76E0B180000000,
+	0xBFE0000000000000,
+	0x3FBE087565455A75,
+	0xBFED906BCF328D46,
+	0xBC7457E620000000,
+	0xBFE0000000000000,
+	0xBFA4A03176ACF82D,
+	0xBFEE9F4156C62DDA,
+	0xBC8760B1E0000000,
+	0xBFD0000000000000,
+	0x3FAC1D1F0E5967D5,
+	0xBFEF6297CFF75CB0,
+	0xBC75621720000000,
+	0xBFD0000000000000,
+	0x3F9BA1650F592F50,
+	0xBFEFD88DA3D12526,
+	0x3C887DF640000000,
+	0xBFC0000000000000,
+	0x0000000000000000,
+	0xBFF0000000000000,
+	0x0000000000000000,
+	0x0000000000000000,
+	0xBF9BA1650F592F50,
+	0xBFEFD88DA3D12526,
+	0x3C887DF640000000,
+	0x3FC0000000000000,
+	0xBFAC1D1F0E5967D5,
+	0xBFEF6297CFF75CB0,
+	0xBC75621720000000,
+	0x3FD0000000000000,
+	0x3FA4A03176ACF82D,
+	0xBFEE9F4156C62DDA,
+	0xBC8760B1E0000000,
+	0x3FD0000000000000,
+	0xBFBE087565455A75,
+	0xBFED906BCF328D46,
+	0xBC7457E620000000,
+	0x3FE0000000000000,
+	0xBF9D4A2C7F909C4E,
+	0xBFEC38B2F180BDB1,
+	0x3C76E0B180000000,
+	0x3FE0000000000000,
+	0x3FAC73B39AE68C87,
+	0xBFEA9B66290EA1A3,
+	0xBC39F630E0000000,
+	0x3FE0000000000000,
+	0x3FC133CC94247758,
+	0xBFE8BC806B151741,
+	0x3C82C5E120000000,
+	0x3FE0000000000000,
+	0x3FCA827999FCEF32,
+	0xBFE6A09E667F3BCD,
+	0x3C8BDD3420000000,
+	0x3FE0000000000000,
+	0xBFCD0DFE53ABA2FD,
+	0xBFE44CF325091DD6,
+	0xBC68076A20000000,
+	0x3FF0000000000000,
+	0xBFC592675BC57974,
+	0xBFE1C73B39AE68C8,
+	0xBC8B25DD20000000,
+	0x3FF0000000000000,
+	0xBFBE3A6873FA1279,
+	0xBFDE2B5D3806F63B,
+	0xBC5E0D8920000000,
+	0x3FF0000000000000,
+	0xBFB37CA1866B95CF,
+	0xBFD87DE2A6AEA963,
+	0x3C672CEDE0000000,
+	0x3FF0000000000000,
+	0xBFA60BEA939D225A,
+	0xBFD294062ED59F06,
+	0x3C75D28DA0000000,
+	0x3FF0000000000000,
+	0xBF93AD06011469FB,
+	0xBFC8F8B83C69A60B,
+	0x3C626D19C0000000,
+	0x3FF0000000000000,
+	0xBF73B92E176D6D31,
+	0xBFB917A6BC29B42C,
+	0x3C3E2718E0000000,
+	0x3FF0000000000000,
+}};

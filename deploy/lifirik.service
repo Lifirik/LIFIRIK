@@ -1,0 +1,51 @@
+# lifirik.service — run the app as a supervised system service.
+#
+#   sudo cp lifirik.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now lifirik
+#   journalctl -u lifirik -f          # logs
+#
+# Assumes the built dist/ is at /srv/lifirik and owned by a `lifirik` user:
+#   sudo useradd --system --home /srv/lifirik --shell /usr/sbin/nologin lifirik
+
+[Unit]
+Description=LIFIRIK
+After=network.target
+
+[Service]
+Type=simple
+User=lifirik
+Group=lifirik
+WorkingDirectory=/srv/lifirik
+ExecStart=/usr/bin/node server.js
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# Caddy sets X-Forwarded-For; without this every visitor shares one rate-limit
+# bucket and the first burst locks out the site. See ratelimit.mjs.
+Environment=TRUST_PROXY=1
+
+# Loopback only. Nothing but the proxy should be able to reach the app, and
+# binding publicly would expose plain HTTP alongside the TLS you just set up.
+Environment=HOST=127.0.0.1
+
+# SIGTERM is how systemd stops and restarts this, and the app's handler flushes
+# the pending debounced save on the way out — give it room to finish.
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+Restart=always
+RestartSec=2
+
+# The process needs to read its own directory and write data/ — nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/lifirik/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,36 @@
+# Caddyfile — TLS for a desktop-hosted site.
+#
+# Run Caddy from this tree (any location). Edit the host name below to your
+# domain. Caddy auto-loads ./Caddyfile from its working directory.
+#
+# deploy/Caddyfile is the LINUX/VPS version: port 3000, /var/log paths.
+# This one is for a desktop host — the app runs on 3232, behind a router
+# forwarding public :80 and :443 to that machine.
+#
+# Certificates: Caddy obtains and renews Let's Encrypt certs on its own via
+# the HTTP-01 challenge, which needs public :80 reaching this machine's :80.
+
+# Edit this host name. Caddy obtains a cert for each name in the block.
+lifirik.example {
+	encode zstd gzip
+
+	reverse_proxy 127.0.0.1:3232 {
+		# OVERWRITE rather than append, and this line is load-bearing.
+		# Caddy's default is to append the peer to any client-supplied
+		# X-Forwarded-For, while ratelimit.mjs's clientIp() reads the
+		# LEFT-MOST entry — so with TRUST_PROXY=1 a visitor could forge the
+		# header and mint a fresh rate-limit identity per request, evading
+		# the limiter completely. {remote_host} is the real peer, always.
+		header_up X-Forwarded-For {remote_host}
+	}
+
+	@wasm path /vendor/fcsim/*
+	header @wasm Cache-Control "public, max-age=31536000, immutable"
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+		-Server
+	}
+}

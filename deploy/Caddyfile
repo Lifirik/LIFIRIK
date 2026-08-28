@@ -1,0 +1,47 @@
+# Caddyfile — TLS, compression and the reverse proxy, in twelve lines.
+#
+# Caddy is the recommendation because it obtains and renews Let's Encrypt
+# certificates on its own: no certbot, no cron, no renewal you forget until the
+# morning the site goes down. Point DNS at the box, run it, done.
+#
+#   sudo apt install caddy
+#   sudo cp Caddyfile /etc/caddy/Caddyfile      # edit the domain first
+#   sudo systemctl reload caddy
+#
+# Replace lifirik.example with your domain. The email is where Let's Encrypt
+# sends expiry warnings if renewal ever fails.
+
+{
+	email you@example.com
+}
+
+lifirik.example {
+	# Compression lives here, not in Node: the client bundle is ~230 KB and
+	# compresses to roughly a quarter of that, and the proxy does it without
+	# the app spending a single cycle.
+	encode zstd gzip
+
+	# The app speaks plain HTTP on the loopback only — nothing but Caddy can
+	# reach it, and Caddy is the only thing holding a certificate.
+	reverse_proxy 127.0.0.1:3000
+
+	# Long cache for the fingerprint-free bundle would be wrong (a deploy
+	# changes app.js in place), so let the app's own no-cache revalidation
+	# stand — 304s are cheap and always correct. The wasm is the exception:
+	# it is pinned by SHA256 and never changes without a version bump.
+	@wasm path /vendor/fcsim/*
+	header @wasm Cache-Control "public, max-age=31536000, immutable"
+
+	# Nothing here should ever be framed or sniffed.
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/lifirik.log
+		format json
+	}
+}
