@@ -5,7 +5,7 @@ import { $, el, esc, appendAll, store, fmtTime, fmtKg, fmtDate, fmtDateTime, tim
 import { initBox2D, Simulation } from './sim.js';
 import { renderPreview, shareCardDataUrl, wordmarkSVG, faviconSVG, COLORS, BACKGROUNDS, drawBackdrop,
  drawTerrainAll, drawZones, drawWheel, drawRod, drawRods, liveRods, wheelCargoBackToFront, goalStackR, drawGoalPiece, drawProp, drawPinDot,
- textureTile, toolIconSVG, zOrderIconSVG, ghostIconSVG, navArrowSVG, textureSwatchURL } from './render.js';
+ textureTile, toolIconSVG, zOrderIconSVG, ghostIconSVG, freeWorldIconSVG, mouseButtonIconSVG, navArrowSVG, textureSwatchURL } from './render.js';
 import { api } from './api.js';
 import { GameScreen, MACHINE_TOOLS, LEVEL_TOOLS, toolBadge, toolOther } from './game.js';
 import { SETS, setOfSlot, newMakerLevel, formatCampaignRange, normalizeCampaigns } from './levels.js';
@@ -2711,13 +2711,19 @@ function sliderMock() {
  mockDial('Spin', '0', 50)));
 }
 
-// A row of gestures: the key, then what it does. The buttons step already uses
-// this shape for the three mouse buttons, and it is the right one for any
-// short list of "press this, get that".
+// A row of gestures: a mark (keycap or the game's own icon), then what it
+// does. The buttons step already uses this shape for the three mouse buttons.
+// `{ html }` is a drawn glyph — GhostRun, Free World, a mouse button — so the
+// Advanced tour shows the control you will look for, not a word for it.
+const gestureMark = (k) => (k && typeof k === 'object' && k.html)
+ ? el('span', { class: 'keycol-icon tour-button-icon', html: k.html })
+ : el('kbd', {}, k);
 const gestureRows = (...rows) => el('div', { class: 'tour-buttons' },
  ...rows.map(([k, lead, rest]) => el('div', { class: 'tour-button' },
- el('kbd', {}, k),
+ gestureMark(k),
  el('span', {}, el('b', {}, lead), rest ? ' ' + rest : null))));
+const gIcon = (svg) => ({ html: svg });
+const gMouse = (which) => gIcon(mouseButtonIconSVG(which, 22));
 
 // ---------- the tutorial (§18) ----------
 //
@@ -3196,34 +3202,37 @@ function tourShows() {
  // chapter — press this, get that.
  'adv.mode': {
  show: () => gestureRows(
- ['Right-click grip', 'The toolbar handle.', 'The same menu that folds the bar.'],
+ [gMouse('right'), 'The toolbar grip.', 'Right-click the handle you drag the bar with — the same menu that folds it.'],
  ['⚙', 'Advanced mode.', 'The bar appears; the info chip starts reading the pointer.'],
  ['Shift+A', 'Cycle the bar.', 'Handle only, then tools, then tools and counts.']),
  },
  'adv.bar': {
  show: () => gestureRows(
- ['Snap', 'The 40 px grid.', 'The same three states S cycles.'],
- ['Free World', 'Build anywhere.', 'A piece left outside the violet box scores nothing.'],
- ['Ghost', 'GhostRun.', 'The next chapter. Freeze a second of the future and keep editing.'],
- ['Speed', 'Playback, not physics.', 'How fast Play plays. The sim is a fixed step either way.']),
+ ['#', 'The 40 px grid.', 'The same three states S cycles on the Advanced bar.'],
+ [gIcon(freeWorldIconSVG(26)), 'Build anywhere.', 'A piece left outside the violet box scores nothing.'],
+ [gIcon(ghostIconSVG(26)), 'A second of the future.', 'Freeze it and keep editing. The next chapter.'],
+ [gIcon('<svg width="28" height="16" viewBox="0 0 28 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="2" y1="8" x2="26" y2="8" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="8" r="4.2" fill="currentColor"/></svg>'),
+ 'Playback, not physics.', 'How fast Play plays. The sim is a fixed step either way.']),
  },
  'adv.ghost': {
  show: () => gestureRows(
- ['Ghost', 'Switch it on.', 'No run needed. The chip carries the dial, 0.1 s to 100 s.'],
- ['Dial', 'Pick the second.', 'Every edit re-runs the machine to it, so the ghost follows what you build.'],
- ['Hide', 'Overlay away.', 'The hollow machine covers the build; roads and the sweep stay.']),
+ [gIcon(ghostIconSVG(26)), 'Switch it on.', 'No run needed. The chip carries the dial, 0.1 s to 100 s.'],
+ [gIcon('<svg width="28" height="16" viewBox="0 0 28 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="2" y1="8" x2="26" y2="8" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="8" r="4.2" fill="currentColor"/></svg>'),
+ 'Pick the second.', 'Every edit re-runs the machine to it, so the ghost follows what you build.'],
+ [gIcon('<svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 12 Q12 5.2 20.5 12 Q12 18.8 3.5 12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M6 19 L18 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'),
+ 'Overlay away.', 'The hollow machine covers the build; roads and the sweep stay.']),
  },
  'adv.road': {
  show: () => gestureRows(
- ['Right-click ground', 'Lay a road.', 'Corners in order, ending at the goal. For cargo that has to go the wrong way first.'],
- ['Right-click a corner', 'Move or remove.', 'Several roads are allowed; the best of them counts.'],
- ['Right-click a goal', 'Pair cargo → zone.', 'The chip writes 1→2. Any goal is the default.']),
+ [gMouse('right'), 'Lay a road.', 'Right-click empty ground. Corners in order, ending at the goal — for cargo that has to go the wrong way first.'],
+ [gMouse('left'), 'Move or remove.', 'Drag a corner; right-click one to drop it. Several roads are allowed; the best of them counts.'],
+ [gIcon(toolIconSVG('goal-ball', 26)), 'Pair cargo → zone.', 'Right-click a goal piece or zone. The chip writes 1→2. Any goal is the default.']),
  },
  'adv.tweak': {
  show: () => gestureRows(
- ['Right-click a pin', 'Sweep it.', '225 positions, three rungs: 1 px, 0.1 px, 0.01 px. The cargo\'s pins too.'],
- ['Right-click a stick', 'Sweep its weight.', 'All hundred whole weights, ×1 to ×100. A rope sweeps every link together.'],
- ['Click a cell', 'Adopt it.', 'Green beats what you have, gold delivers, grey the editor refuses. Nothing applies itself.'],
+ [gIcon(toolIconSVG('pin', 26)), 'Sweep a pin.', 'Right-click one of yours — the cargo\'s too. 225 positions, three rungs: 1 px, 0.1 px, 0.01 px.'],
+ [gIcon(toolIconSVG('rod-wood', 26)), 'Sweep a weight.', 'Right-click a stick. All hundred whole weights, ×1 to ×100. A rope sweeps every link together.'],
+ [gMouse('left'), 'Adopt a cell.', 'Green beats what you have, gold delivers, grey the editor refuses. Nothing applies itself.'],
  ['Esc', 'Stop the sweep.', 'What it measured stays on the chip and is still clickable.']),
  extra: () => el('p', { class: 'tour-out' },
  el('a', { class: 'btn primary big', href: '/keys' }, 'All the controls'),

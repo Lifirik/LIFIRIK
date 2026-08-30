@@ -3494,10 +3494,11 @@ kbd {
 
 .tour-buttons { display: flex; flex-direction: column; gap: 8px; }
 .tour-button {
- display: flex; gap: 12px; align-items: baseline;
+ display: flex; gap: 12px; align-items: center;
  background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
 }
-.tour-button kbd { flex: 0 0 62px; text-align: center; }
+.tour-button kbd, .tour-button .tour-button-icon { flex: 0 0 62px; text-align: center; }
+.tour-button .tour-button-icon { min-height: 26px; }
 .tour-button span { font-size: 13.5px; line-height: 1.55; }
 .tour-badges { margin: 0; }
 
