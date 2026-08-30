@@ -18,7 +18,8 @@
     "scripts/seed-official-levels.js",
     "scripts/campaign-seed.json",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "Instructions.md"
   ],
   "scripts": {
     "start": "node server.js",

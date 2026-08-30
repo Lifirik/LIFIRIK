@@ -445,14 +445,14 @@ function run(level, design, seconds = 15) {
   gate('8. no chapter is empty, and every one is named',
     TOUR_PLAN.length > 0 && TOUR_PLAN.every((ch) => ch.steps.length > 0 && ch.id && ch.name && ch.tagline),
     TOUR_PLAN.map((ch) => `${ch.id}:${ch.steps.length}`).join(' '));
-  // **The three PARTS are the page's top level**, and each has to be reachable
+  // **The four PARTS are the page's top level**, and each has to be reachable
   // and non-empty. `fc` is deliberately chapter-less — it is a written page,
   // not a tour — so it is the one part allowed no steps, and stating that here
   // is what stops "the FC part has no chapters" from looking like a bug the
   // day somebody counts them.
   const partIds = TOUR_PARTS.map((p) => p.id);
-  gate('8. three parts, each named and each a real URL',
-    TOUR_PARTS.length === 3 && TOUR_PARTS.every((p) => p.id && p.name && p.tagline && /^\/[a-z/]*$/.test(p.href)),
+  gate('8. four parts, each named and each a real URL',
+    TOUR_PARTS.length === 4 && TOUR_PARTS.every((p) => p.id && p.name && p.tagline && /^\/[a-z/]*$/.test(p.href)),
     TOUR_PARTS.map((p) => `${p.id}→${p.href}`).join(' '));
   const orphanChapters = TOUR_PLAN.filter((ch) => !partIds.includes(ch.part));
   gate('8. …and every chapter belongs to one of them',
@@ -460,7 +460,7 @@ function run(level, design, seconds = 15) {
     orphanChapters.length ? orphanChapters.map((c) => `${c.id}:${c.part}`).join(' ') : `${TOUR_PLAN.length} chapters placed`);
   const stepped = partIds.filter((id) => TOUR_PLAN.some((ch) => ch.part === id));
   gate('8. …and only FC is a part with no chapters in it',
-    stepped.length === 2 && !stepped.includes('fc'),
+    stepped.length === 3 && !stepped.includes('fc'),
     `stepped parts: ${stepped.join(', ') || 'none'}`);
   gate('8. step ids are unique across the whole tour',
     new Set(stepIds).size === stepIds.length, `${stepIds.length} steps`);

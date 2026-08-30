@@ -94,15 +94,15 @@ export async function boot() {
  // who DO have a pile of levels to bring across are the people arriving from
  // Fantastic Contraption, who have their own page. The door is on that page
  // now, where the people who want it already are.
- // **One help door, three parts behind it** (§18). FC used to be a nav tab
+ // **One help door, four parts behind it** (§18). FC used to be a nav tab
  // of its own, on the reasoning that somebody arriving from Fantastic
  // Contraption will not open a tutorial — which was right about the old `?`,
  // a single beginner's tour with the differences buried in step six. It is
  // not right about this one: `?` now opens a page whose top row is
- // Beginner / Level Maker / FC, so the differences are one visible click
- // from the door rather than hidden in a sequence. Two letters of nav have
- // gone back to being one icon, and `/fc` still routes.
- el('a', { class: 'nav-link nav-icon', href: '/learn', title: 'Help — playing, making levels, and coming from FC' }, '?'),
+ // Beginner / Level Maker / Advanced / FC, so the differences — and GhostRun
+ // — are one visible click from the door rather than hidden in a sequence.
+ // Two letters of nav have gone back to being one icon, and `/fc` still routes.
+ el('a', { class: 'nav-link nav-icon', href: '/learn', title: 'Help — playing, making levels, advanced use, and coming from FC' }, '?'),
  // A cog, not the ♪ it was. The screen behind it stopped being sound-only
  // when the password panel landed there (§13.1), and a music note is a
  // promise about what is on a page — somebody looking for their password
@@ -475,7 +475,7 @@ function route() {
  case 'settings': return settingsScreen();
  case 'keys': return keysScreen();
  case 'support': return supportScreen();
- // `/learn`, `/learn/maker`, `/learn/fc` — one screen, three parts (§18).
+ // `/learn`, `/learn/maker`, `/learn/advanced`, `/learn/fc` — one screen, four parts (§18).
  case 'learn': return learnScreen(parts[1]);
  // **`/fc` is kept alive rather than redirected.** It is the URL that has
  // been handed to FC players in chat rooms and comments, and a link that
@@ -3188,10 +3188,52 @@ function tourShows() {
  show: () => liveDemo(CART_LEVEL, CART_DESIGN, DEMO_LOOP_S.cart, { w: 460, h: 200 }),
  extra: doors,
  },
+
+ // ---- Advanced · GhostRun and tweaking ----
+ //
+ // No live physics here: the claim is about an editor mode, not a machine
+ // that has to win. Gesture rows, same shape as the Maker's "in the hand"
+ // chapter — press this, get that.
+ 'adv.mode': {
+ show: () => gestureRows(
+ ['Right-click grip', 'The toolbar handle.', 'The same menu that folds the bar.'],
+ ['⚙', 'Advanced mode.', 'The bar appears; the info chip starts reading the pointer.'],
+ ['Shift+A', 'Cycle the bar.', 'Handle only, then tools, then tools and counts.']),
+ },
+ 'adv.bar': {
+ show: () => gestureRows(
+ ['Snap', 'The 40 px grid.', 'The same three states S cycles.'],
+ ['Free World', 'Build anywhere.', 'A piece left outside the violet box scores nothing.'],
+ ['Ghost', 'GhostRun.', 'The next chapter. Freeze a second of the future and keep editing.'],
+ ['Speed', 'Playback, not physics.', 'How fast Play plays. The sim is a fixed step either way.']),
+ },
+ 'adv.ghost': {
+ show: () => gestureRows(
+ ['Ghost', 'Switch it on.', 'No run needed. The chip carries the dial, 0.1 s to 100 s.'],
+ ['Dial', 'Pick the second.', 'Every edit re-runs the machine to it, so the ghost follows what you build.'],
+ ['Hide', 'Overlay away.', 'The hollow machine covers the build; roads and the sweep stay.']),
+ },
+ 'adv.road': {
+ show: () => gestureRows(
+ ['Right-click ground', 'Lay a road.', 'Corners in order, ending at the goal. For cargo that has to go the wrong way first.'],
+ ['Right-click a corner', 'Move or remove.', 'Several roads are allowed; the best of them counts.'],
+ ['Right-click a goal', 'Pair cargo → zone.', 'The chip writes 1→2. Any goal is the default.']),
+ },
+ 'adv.tweak': {
+ show: () => gestureRows(
+ ['Right-click a pin', 'Sweep it.', '225 positions, three rungs: 1 px, 0.1 px, 0.01 px. The cargo\'s pins too.'],
+ ['Right-click a stick', 'Sweep its weight.', 'All hundred whole weights, ×1 to ×100. A rope sweeps every link together.'],
+ ['Click a cell', 'Adopt it.', 'Green beats what you have, gold delivers, grey the editor refuses. Nothing applies itself.'],
+ ['Esc', 'Stop the sweep.', 'What it measured stays on the chip and is still clickable.']),
+ extra: () => el('p', { class: 'tour-out' },
+ el('a', { class: 'btn primary big', href: '/keys' }, 'All the controls'),
+ el('a', { class: 'btn big', href: '/maker' }, 'Level Maker'),
+ el('a', { class: 'btn big', href: '/campaign' }, 'Campaign')),
+ },
  };
 }
 
-// The three-part switcher at the top of the help page (§18). Real links, not
+// The four-part switcher at the top of the help page (§18). Real links, not
 // buttons: each part is a URL somebody can be sent, which is the whole reason
 // the FC page can stop being a nav tab without becoming unreachable.
 function partTabs(active) {
@@ -3199,13 +3241,14 @@ function partTabs(active) {
  ...TOUR_PARTS.map((pt) => el('a', {
  class: 'tour-part' + (pt.id === active ? ' on' : ''),
  href: pt.href,
- title: pt.tagline,
- }, el('b', {}, pt.name), el('span', { class: 'muted' }, pt.tagline))));
+ title: t(pt.tagline),
+ }, el('b', {}, t(pt.name)), el('span', { class: 'muted' }, t(pt.tagline)))));
 }
 
-// `/learn`, `/learn/maker`, `/learn/fc` — and `/fc`, which routes here too.
-// An unrecognised second segment is the Beginner part rather than a 404: this
-// is the help page, and the least helpful thing it could do is refuse.
+// `/learn`, `/learn/maker`, `/learn/advanced`, `/learn/fc` — and `/fc`, which
+// routes here too. An unrecognised second segment is the Beginner part rather
+// than a 404: this is the help page, and the least helpful thing it could do
+// is refuse.
 function learnScreen(partId) {
  const part = TOUR_PARTS.find((p) => p.id === partId) || TOUR_PARTS[0];
  if (part.id === 'fc') return fcPart();
@@ -3213,7 +3256,11 @@ function learnScreen(partId) {
 }
 
 function tourPart(part) {
- document.title = t(part.id === 'maker' ? 'Making levels — LIFIRIK' : 'How to play — LIFIRIK');
+ const titles = {
+ maker: 'Making levels — LIFIRIK',
+ advanced: 'Advanced use — LIFIRIK',
+ };
+ document.title = t(titles[part.id] || 'How to play — LIFIRIK');
  const shows = tourShows();
  // The flat list, with each step remembering its chapter — Next simply walks
  // it, so a chapter boundary is a border you cross without noticing you
@@ -3264,9 +3311,9 @@ function tourPart(part) {
  // anything — the tagline under each name is its whole sales pitch
  chapters.replaceChildren(...chaptersOf.map((ch, ci) => el('button', {
  class: 'tour-chapter' + (ci === s.ci ? ' on' : '') + (ci < s.ci ? ' done' : ''),
- title: ch.tagline,
+ title: t(ch.tagline),
  onclick: () => go(steps.findIndex((st) => st.ci === ci)),
- }, el('b', {}, `${ci + 1} · ${t(ch.name)}`), el('span', { class: 'muted' }, ch.tagline))));
+ }, el('b', {}, `${ci + 1} · ${t(ch.name)}`), el('span', { class: 'muted' }, t(ch.tagline)))));
  // dots for THIS chapter only — nineteen dots was a wall, six is a pocket
  rail.replaceChildren(...s.ch.steps.map((id, k) => el('button', {
  class: 'tour-dot' + (id === s.id ? ' on' : '') + (steps.findIndex((st) => st.id === id) < i ? ' done' : ''),
@@ -3581,7 +3628,8 @@ function keysScreen() {
  el('p', { class: 'muted' },
  'Every key and every mouse gesture, in one boring list. New? The ',
  el('a', { href: '/learn' }, 'tutorial'), ' is friendlier, and there is a ',
- el('a', { href: '/learn/maker' }, 'guide to making levels'), '. Coming from ',
+ el('a', { href: '/learn/maker' }, 'guide to making levels'), ' and an ',
+ el('a', { href: '/learn/advanced' }, 'Advanced'), ' walkthrough of GhostRun and tweaking. Coming from ',
  el('a', { href: '/learn/fc' }, 'Fantastic Contraption'), '? Start there.'),
  stories,
 
@@ -3653,7 +3701,7 @@ function keysScreen() {
  row(el('span', { class: 'keycol' }, el('span', { class: 'keycol-icon', html: ghostIconSVG(20) }), el('span', { class: 'muted' }, ' on the Advanced bar')),
  'Switch it on. A chip appears; your machine is drawn faintly over the level as it will be at the aimed second, with the road the cargo takes to get there and ten pictures of it along the way, evenly spaced in time — so the gaps between them are its speed'),
  row(el('span', { class: 'keycol' }, kbd('Drag'), el('span', { class: 'muted' }, ' the chip\'s dial')),
- 'Choose the second you are looking at, 0.1 s to 60 s. A matrix that is up re-runs itself at the new second once you let go — the pin has not changed, only the question. Every edit re-runs the machine to it, so the ghost follows what you build. (The play scrub line re-aims it too, when you have a run to scrub.)'),
+ 'Choose the second you are looking at, 0.1 s to 100 s. A matrix that is up re-runs itself at the new second once you let go — the pin has not changed, only the question. Every edit re-runs the machine to it, so the ghost follows what you build. (The play scrub line re-aims it too, when you have a run to scrub.)'),
  row(el('span', { class: 'keycol' }, kbd('Hide'), el('span', { class: 'muted' }, ' on the chip')),
  'Put the future overlay away without leaving GhostRun. The hollow machine at the aimed second is what covers the build; the roads, the score and the sweep stay. Show brings it back. Same item on the ground’s right-click menu'),
  row(el('span', { class: 'keycol' }, kbd('Right-click'), el('span', { class: 'muted' }, ' the ground')),
@@ -3667,7 +3715,7 @@ function keysScreen() {
  row(el('span', { class: 'keycol' }, kbd('Click'), el('span', { class: 'muted' }, ' the field')),
  'Hover a cell and the cargo’s road for that candidate is drawn over the level in slate — free, because it is the run the cell was scored from. Every position is measured and painted as it goes: green beats the machine you have, gold DELIVERS (deepest gold is soonest), grey is a spot the editor refuses. Click any measured cell — while the sweep is still running if you like — and the pin goes there — always measured from where the sweep began, so you can walk a cluster and watch each one, and the middle cross puts it back. The scale under it says what the colours are worth'),
  row('Esc', 'Stop a sweep. What it measured stays on the chip and is still clickable, and it says how much of the grid it covered'),
- ], 'Advanced mode only (the ⚙ menu). Edit a machine against a chosen second of its own future: pick the second, and the ghost shows you what your changes do to it without ever pressing Play. No run needed to start.'),
+ ], 'Advanced mode only (the ⚙ menu). Edit a machine against a chosen second of its own future: pick the second, and the ghost shows you what your changes do to it without ever pressing Play. No run needed to start. Walked through under Help → Advanced.'),
 
  // The visual glossary. It used to live on the tutorial, which is now a
  // ten-step arc with no room for a catalogue — and a catalogue is what this

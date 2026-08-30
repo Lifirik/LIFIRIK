@@ -3613,10 +3613,11 @@ kbd {
  .tour-title { font-size: 21px; }
  .tour-trio .tour-panel { flex: 1 1 100%; }
  .tour-chapter { flex: 1 1 100%; }
- /* The three parts stay side by side as long as they can, because they are
- the page's navigation and a stack of three reads as a list of articles.
- Below this the taglines are what go, not the row. */
- .tour-part { flex: 1 1 90px; padding: 8px 9px; }
+ /* The four parts stay side by side as long as they can, because they are
+ the page's navigation and a stack of four reads as a list of articles.
+ Below this the taglines are what go, not the row. Basis is tight enough
+ that four still fit a 390 px phone (90 px × 4 did not). */
+ .tour-part { flex: 1 1 72px; padding: 8px 9px; }
  .tour-part b { font-size: 13px; }
  .tour-part .muted { display: none; }
 }

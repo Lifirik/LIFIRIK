@@ -517,7 +517,74 @@ Some challenges stake points. Winner takes the pot; the leaderboards remember.` 
   { key: 'tour.win.out.body', group: 'Beginner · 3 Compete', label: 'Out — body', rich: true, def:
 `You can play, you can build with the whole toolkit, you can author levels and run competitions on them. There is no chapter five; from here the game is other people.
 
-~Everything not covered lives on [Controls](/keys), and none of it is needed to have a good time.` },
+~When a machine is already close and you want millimetres, that is [Advanced](/learn/advanced) — GhostRun, and tweaking a pin or a weight against the future. Everything else lives on [Controls](/keys), and none of it is needed to have a good time.` },
+
+  // ---- Advanced · GhostRun and tweaking ----
+  //
+  // A fourth PART, not a chapter of Beginner. Somebody finishing a machine by
+  // millimetres is not partway through learning to play, and burying GhostRun
+  // in "Build smarter" would put it in front of people who have not yet built
+  // a cart. The door is the same `?`; the page is its own URL.
+
+  { key: 'tour.adv.mode.title', group: 'Advanced · 1 The bar', label: 'The door — title', def: 'Advanced mode is a door on the toolbar.' },
+  { key: 'tour.adv.mode.body', group: 'Advanced · 1 The bar', label: 'The door — body', rich: true, def:
+`Right-click the toolbar's **grip** — the handle you drag the bar around with — and press **⚙**. The Advanced bar appears, and an info chip starts reading whatever is under the pointer.
+
+That is the whole door. Everything in this part lives behind it. Nothing in the rest of the game changes until you open it.
+
+~On a touch screen the grip's menu is the same hold-still gesture as a piece's.` },
+  { key: 'tour.adv.mode.more', group: 'Advanced · 1 The bar', label: 'The door — more', rich: true, def:
+`[[Shift+A]] cycles the Advanced bar: handle only, then tools, then tools and counts. Double-tap any bar's grip to fold it. ⤫ in that menu hides every bar to one spot, which is how you get the canvas to yourself.
+
+The same ⚙ used to live on the Settings page. It is on the toolbar now because a mode switch two screens away is a mode nobody finds.` },
+
+  { key: 'tour.adv.bar.title', group: 'Advanced · 1 The bar', label: 'The bar — title', def: 'Snap, Free World, Ghost, speed.' },
+  { key: 'tour.adv.bar.body', group: 'Advanced · 1 The bar', label: 'The bar — body', rich: true, def:
+`**Snap** is the 40 px grid — the same one [[S]] cycles. **Free World** lets you build anywhere in the level, not just the violet box. A run with any piece left outside scores nothing: no badges, no solve. You can still save the attempt.
+
+**GhostRun** is the next chapter. The slider is playback speed, not the physics clock.
+
+Select two or more pieces and the second row lights up: align, touch, spread, wrap a rope, group, delete.` },
+  { key: 'tour.adv.bar.more', group: 'Advanced · 1 The bar', label: 'The bar — more', rich: true, def:
+`The info chip is the other half of the mode — frames per second, and a live readout of the piece under the pointer. Expand the toolbar from the same grip menu if you want every shape as its own button.
+
+None of this is required to play. All of it is for finishing a machine that is already close.` },
+
+  { key: 'tour.adv.ghost.title', group: 'Advanced · 2 Ghost mode', label: 'GhostRun — title', def: 'GhostRun draws a second of the future.' },
+  { key: 'tour.adv.ghost.body', group: 'Advanced · 2 Ghost mode', label: 'GhostRun — body', rich: true, def:
+`Press the ghost on the Advanced bar. Your machine is drawn faintly as it will be at a chosen second, with the road the cargo takes to get there and ten pictures of it along the way — the gaps between them are its speed.
+
+Every edit re-runs the machine to that second, so the ghost follows what you build. You never have to press Play to start.
+
+The chip carries the dial, **0.1 s to 100 s**. **Hide** puts the overlay away without leaving the mode, if the ghost is covering the build.` },
+  { key: 'tour.adv.ghost.more', group: 'Advanced · 2 Ghost mode', label: 'GhostRun — more', rich: true, def:
+`The ghost is a second simulation, not a rewind of a recording. A tape says what a machine did; GhostRun answers what a different machine would do. Catch-up is visible on purpose: after an edit the ghost replays itself at speed and settles.
+
+The play scrub line re-aims it too, when you have a run to scrub. Full bindings live on [Controls](/keys).` },
+
+  { key: 'tour.adv.road.title', group: 'Advanced · 2 Ghost mode', label: 'Roads — title', def: 'Draw the cargo a road.' },
+  { key: 'tour.adv.road.body', group: 'Advanced · 2 Ghost mode', label: 'Roads — body', rich: true, def:
+`Right-click empty ground to lay a **road** — corners in the order the cargo should travel them, ending at the goal. Use one when the cargo has to go the wrong way first, which on some levels is the only way it ever goes the right way.
+
+Drag a corner to move it, right-click one to remove it. Several roads are allowed and the best of them counts. On a level with more than one cargo, each road belongs to one.
+
+Right-click a goal piece or a goal zone to pair them: the chip writes 1→2 when cargo 1 is sent to goal 2. “Any goal” is the default, and the real win is still any piece in any zone.` },
+  { key: 'tour.adv.road.more', group: 'Advanced · 2 Ghost mode', label: 'Roads — more', rich: true, def:
+`A road is what a sweep scores against. Without one, the score is straight-line distance to the nearest goal — fine until the cargo has to go backwards first, at which point “closer to the goal” is the wrong question. Draw the road, then sweep.` },
+
+  { key: 'tour.adv.tweak.title', group: 'Advanced · 2 Ghost mode', label: 'Tweaking — title', def: 'Tweak a pin, or a weight.' },
+  { key: 'tour.adv.tweak.body', group: 'Advanced · 2 Ghost mode', label: 'Tweaking — body', rich: true, def:
+`Right-click one of **your own pins** — the cargo's included — and **sweep** it. Hundreds of positions, each a full re-run, scored by how far it gets the cargo along its road (or straight at the goal if you have not drawn one).
+
+Three rungs: **1 px**, **0.1 px**, **0.01 px**. The coarse one finds the region; the fine ones find what is inside it.
+
+Right-click a **stick** to sweep its weight instead — all hundred whole weights, ×1 to ×100. A rope sweeps every link together.
+
+Hover a cell for that candidate's road. **Green** beats the machine you have, **gold** delivers (deepest gold is soonest), **grey** is a spot the editor refuses. Click any measured cell to put the pin there. [[Esc]] stops a sweep; what it measured stays.` },
+  { key: 'tour.adv.tweak.more', group: 'Advanced · 2 Ghost mode', label: 'Tweaking — more', rich: true, def:
+`Nothing is applied automatically — a click is what moves the machine. The middle cross puts it back. The scale under the field says what the colours are worth. After a coarse sweep the chip offers the next finer rung at the winner.
+
+A long aim is a slow sweep, because every cell is a full rollout to that second. Start the dial near where the cargo actually misses.` },
 
   { key: 'support.title', group: 'Support', label: 'Page title', def: 'Support' },
   { key: 'support.sub', group: 'Support', label: 'Page sub-heading',
@@ -570,14 +637,12 @@ Some challenges stake points. Winner takes the pot; the leaderboards remember.` 
 
 // ---------- the help page's shape (§18) ----------
 //
-// **Three PARTS, because there are three different people at that door.**
-// Somebody who has never played, somebody who wants to author a level, and
-// somebody arriving from Fantastic Contraption are not at different points of
-// one journey — they want different pages, and the `?` in the nav is the only
-// place any of them will look. So the parts are the top level, each is a real
-// URL, and the middle one grew from a four-step sketch into a chapter of its
-// own because "how do I make a level" is the question that most needs an
-// answer longer than a paragraph.
+// **Four PARTS, because there are four different people at that door.**
+// Somebody who has never played, somebody who wants to author a level,
+// somebody finishing a machine by millimetres, and somebody arriving from
+// Fantastic Contraption are not at different points of one journey — they
+// want different pages, and the `?` in the nav is the only place any of them
+// will look. So the parts are the top level, each is a real URL.
 //
 // FC has no chapters: it is a written page (`fcBody()` in main.js) rather than
 // a stepped tour, because its reader already knows how to build and wants a
@@ -587,6 +652,8 @@ export const TOUR_PARTS = [
     tagline: 'Never played? Start here — five minutes to your first win' },
   { id: 'maker', name: 'Level Maker', href: '/learn/maker',
     tagline: 'Build a level of your own, in as much detail as you want' },
+  { id: 'advanced', name: 'Advanced', href: '/learn/advanced',
+    tagline: 'GhostRun, pin sweeps, and the rest of the toolkit' },
   { id: 'fc', name: 'FC', href: '/learn/fc',
     tagline: 'Coming from Fantastic Contraption? Just the differences' },
 ];
@@ -615,6 +682,11 @@ export const TOUR_PLAN = [
     steps: ['make.parts', 'make.path', 'make.spin', 'make.groups'] },
   { id: 'ship', part: 'maker', name: 'Publish it', tagline: 'Beat your own level, then let it go',
     steps: ['make.beat', 'make.publish'] },
+
+  { id: 'advbar', part: 'advanced', name: 'The Advanced bar', tagline: 'Turn it on, then use it',
+    steps: ['adv.mode', 'adv.bar'] },
+  { id: 'ghost', part: 'advanced', name: 'Ghost mode', tagline: 'Edit against a second of the future',
+    steps: ['adv.ghost', 'adv.road', 'adv.tweak'] },
 ];
 
 const BY_KEY = new Map(CONTENT.map(c => [c.key, c]));
