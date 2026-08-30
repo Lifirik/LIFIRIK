@@ -3204,6 +3204,7 @@ function tourShows() {
  show: () => gestureRows(
  [gMouse('right'), 'The toolbar grip.', 'Right-click the handle you drag the bar with — the same menu that folds it.'],
  ['⚙', 'Advanced mode.', 'The bar appears; the info chip starts reading the pointer.'],
+ ['⌨', 'The key/mouse chip.', 'Live Left / Middle / Right, scroll, and arrows for the tool and modifiers you are holding. Scroll over a selected stick varies its weight.'],
  ['Shift+A', 'Cycle the bar.', 'Handle only, then tools, then tools and counts.']),
  },
  'adv.bar': {

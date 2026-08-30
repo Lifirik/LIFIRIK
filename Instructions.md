@@ -343,8 +343,10 @@ The same menu:
   handle → tools → tools and counts)
 - hide *every* bar to one spot, and click that spot to bring them back
 - **expanded toolbar** — every shape its own button, delete tool visible
-- **bindings chip** — live card of what left / middle / right mouse and the
-  arrows do right now, given the current tool and modifiers
+- **key/mouse chip** (⌨) — live Left / Middle / Right, **scroll**, and
+  arrows for the current tool and modifiers. Scroll over a selected stick
+  varies its weight (Shift ±10, Alt ±100); over a wheel, its size; away
+  from a selection, zoom.
 
 The play bar has its own brief/expanded pair on *its* grip (Revert, Undo,
 Redo, Fit).

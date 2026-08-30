@@ -69,7 +69,7 @@ import {
  drawPlanetHalos, drawGravityField, drawGravityFlux, drawPieceGravity, drawTerrainPins, drawLevelPins, drawFreeWorldWeave, drawBackLevel, BACKDROP_SCALE, BACKDROP_ALPHA, SKY_PARALLAX_OF, skyHazeOf,
  drawUnseen,
  drawTexts, drawTextPiece, textBox, measureTextPiece,
- toolIconSVG, chainWrapIconSVG, cornerIconSVG, touchIconSVG, spreadIconSVG, zOrderIconSVG, arrowKeysIconSVG, mouseButtonIconSVG, freeWorldIconSVG, groupIconSVG, expandIconSVG, terrainPath,
+ toolIconSVG, chainWrapIconSVG, cornerIconSVG, touchIconSVG, spreadIconSVG, zOrderIconSVG, arrowKeysIconSVG, mouseButtonIconSVG, scrollWheelIconSVG, freeWorldIconSVG, groupIconSVG, expandIconSVG, terrainPath,
  ghostIconSVG, drawGoalTrace, drawSweepField, drawGhostTarget, drawGhostRoad, drawGhostZoneIndex,
  textureSwatchURL, propTextureSwatchURL, shareCardDataUrl,
 } from './render.js';
@@ -2713,8 +2713,8 @@ export class GameScreen {
  : 'Expanded toolbar — every shape gets its own button (ball, crate, painter…) and the delete tool returns',
  this._toolbarExpanded(), () => this._setToolbarExpanded(!this._toolbarExpanded()));
  cell('⌨', 'Bindings chip', this._bindChipOn
- ? 'Bindings chip is ON — live L / M / R mouse and arrow keys for the current tool and modifiers'
- : 'Bindings chip — a live card of what left / middle / right mouse and the arrows do right now',
+ ? 'Bindings chip is ON — live L / M / R, scroll, and arrows for the current tool and modifiers'
+ : 'Bindings chip — a live card of what left / middle / right mouse, scroll, and the arrows do right now',
  this._bindChipOn, () => this._setBindChip(!this._bindChipOn));
  }
  // …and the play dock has the same brief/expanded pair, on its own grip.
@@ -8350,19 +8350,24 @@ export class GameScreen {
  overResize: this._overResizeHandle(w),
  armedRotate: this._armedHandle?.type === 'rotate',
  armedResize: this._armedHandle?.type === 'resize',
+ ghostSweep: !!this._ghostSweep,
+ scrollSel: this._scrollSel(w),
  });
- const sig = [r.tool, r.mods, r.left, r.middle, r.right, r.arrows, r.dbl || '', r.note || ''].join('\u0000');
+ const sig = [r.tool, r.mods, r.left, r.middle, r.right, r.arrows, r.dbl || '', r.scroll || '', r.note || ''].join('\u0000');
  if (sig === this._bindChipSig) return;
  this._bindChipSig = sig;
  const head = r.mods ? `${r.tool} · ${r.mods}` : r.tool;
  this.bindChipHead.textContent = head;
- const rows = [['left', r.left], ['dbl', r.dbl], ['middle', r.middle], ['right', r.right], ['arrows', r.arrows]];
+ const rows = [['left', r.left], ['dbl', r.dbl], ['middle', r.middle], ['right', r.right], ['scroll', r.scroll], ['arrows', r.arrows]];
  const body = this.bindChipRows;
- if (body.childElementCount !== 5 || !body.querySelector('.bind-chip-mouse')) {
+ if (body.childElementCount !== 6 || !body.querySelector('.bind-chip-scroll')) {
  body.textContent = '';
  const keyEl = (k) => {
  if (k === 'arrows') {
  return el('kbd', { class: 'bind-chip-key bind-chip-arrows', html: arrowKeysIconSVG(12), 'aria-label': 'Arrow keys' });
+ }
+ if (k === 'scroll') {
+ return el('kbd', { class: 'bind-chip-key bind-chip-mouse bind-chip-scroll', html: scrollWheelIconSVG(13), 'aria-label': 'Scroll' });
  }
  const label = k === 'left' ? 'Left mouse' : k === 'middle' ? 'Middle mouse' : k === 'right' ? 'Right mouse' : 'Double-click';
  return el('kbd', {
@@ -8778,6 +8783,36 @@ export class GameScreen {
  _wheelTarget() {
  const t = this._wheelTargets();
  return t.length === 1 ? t[0] : null;
+ }
+
+ // What the scroll wheel would do at world point `w` — same branches
+ // `_wheelEvt` spends, so the bindings chip cannot name a gesture the
+ // wheel will not actually fire.
+ _scrollSel(w) {
+ if (!w || this.playing || this._ghostSweep || this._paintStroke) return null;
+ const z = this.camera?.zoom || 1;
+ const rod = this._wheelTargets()
+ .map((s) => this._selRod(s))
+ .filter(Boolean)
+ .map((r) => ({ r, d: pointSegDist(w.x, w.y, r.x1, r.y1, r.x2, r.y2) }))
+ .filter((c) => c.d < 10 / z)
+ .sort((a, b) => a.d - b.d)[0]?.r;
+ if (rod) return 'rod';
+ const one = this._wheelTarget();
+ if (one && (one.kind === 'part' || one.kind === 'fixed') && one.ref.t === 'wheel'
+ && dist(w.x, w.y, one.ref.x, one.ref.y) < one.ref.r + 8 / z) return 'wheel';
+ if (one?.kind === 'text' && this.tab === 'level'
+ && pointInRect(w.x, w.y, textBox(one.ref), 8 / z)) return 'text';
+ if (one && ['terrain', 'prop', 'goal'].includes(one.kind) && this.tab === 'level') {
+ const t = one.kind === 'goal' ? this.level.goalObjs[one.idx] : one.ref;
+ const pos = one.kind === 'goal' ? this.goalPositions[one.idx] : t;
+ const over = isPaint(t) ? pointInPoly(w.x, w.y, this._paintPts(t))
+ : (t.type || t.shape) === 'ball'
+ ? dist(w.x, w.y, pos.x, pos.y) < t.r + 8
+ : pointInRect(w.x, w.y, { ...t, x: pos.x, y: pos.y }, 8);
+ if (over) return 'shape';
+ }
+ return null;
  }
 
  _wheelEvt(e) {

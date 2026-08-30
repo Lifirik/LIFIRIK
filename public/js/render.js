@@ -6222,6 +6222,18 @@ export function mouseButtonIconSVG(which, size = 14) {
  + `</svg>`;
 }
 
+// Scroll wheel — the same mouse as L/M/R, wheel filled, with ticks so it is
+// not mistaken for middle-click (that one lights the wheel too, without ticks).
+export function scrollWheelIconSVG(size = 14) {
+ return `<svg width="${size}" height="${size}" viewBox="0 0 16 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`
+ + `<path d="M3.2 8.2 C3.2 17.2 5.2 18.6 8 18.6 C10.8 18.6 12.8 17.2 12.8 8.2" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>`
+ + `<path d="M3.2 8.2 C3.2 3.6 5.4 2.2 8 2.2 L8 8.2 Z" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>`
+ + `<path d="M12.8 8.2 C12.8 3.6 10.6 2.2 8 2.2 L8 8.2 Z" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>`
+ + `<rect x="7.15" y="3.6" width="1.7" height="4.2" rx="0.85" fill="currentColor" stroke="currentColor" stroke-width="1.1"/>`
+ + `<path d="M8 0.6 L8 1.8 M8 18.2 L8 19.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>`
+ + `</svg>`;
+}
+
 // Four-way arrow pad — the bindings chip's stand-in for ←↑→↓.
 export function arrowKeysIconSVG(size = 12) {
  const arm = (rot) =>

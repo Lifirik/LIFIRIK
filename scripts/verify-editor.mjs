@@ -13586,6 +13586,18 @@ section('90b', () => {
   gate('90b. …arrows scrub a tape unless Alt is for a nudge',
     bindLegend({ hasTape: true, hasSel: true }).arrows.startsWith('Scrub')
     && bindLegend({ hasTape: true, hasSel: true, alt: true }).arrows.includes('Nudge'));
+  gate('90b. …scroll over empty is zoom',
+    bindLegend({ tool: 'pointer' }).scroll === 'Zoom');
+  gate('90b. …scroll over a selected stick varies weight, Shift ±10, Alt ±100',
+    bindLegend({ tool: 'pointer', scrollSel: 'rod' }).scroll === 'Vary weight'
+    && bindLegend({ tool: 'pointer', scrollSel: 'rod', shift: true }).scroll === 'Vary weight ±10'
+    && bindLegend({ tool: 'pointer', scrollSel: 'rod', alt: true }).scroll === 'Vary weight ±100');
+  gate('90b. …scroll over a selected wheel / label / shape names the resize',
+    bindLegend({ tool: 'pointer', scrollSel: 'wheel' }).scroll === 'Vary wheel size'
+    && bindLegend({ tool: 'pointer', scrollSel: 'text' }).scroll === 'Vary label size'
+    && bindLegend({ tool: 'pointer', scrollSel: 'shape' }).scroll === 'Resize');
+  gate('90b. …a sweep field keeps scroll as zoom so looking around does not edit',
+    bindLegend({ tool: 'pointer', scrollSel: 'rod', ghostSweep: true }).scroll === 'Zoom');
   gate('90b. the toolbar grip menu toggles the chip',
     /Bindings chip/.test(src) && /_setBindChip/.test(src) && /bindLegend\(/.test(src));
   const ctx = src.slice(src.indexOf('\n  _contextMenu('), src.indexOf('\n  _deleteAtCursorPt('));

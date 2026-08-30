@@ -5142,7 +5142,8 @@ export function bindLegend(c = {}) {
  })[tool] || tool;
 
  const row = (left, middle, right, arrows, extra = {}) =>
- ({ tool: toolLabel, mods, left, middle, right, arrows, dbl: extra.dbl ?? dblLine(), ...extra });
+ ({ tool: toolLabel, mods, left, middle, right, arrows,
+    dbl: extra.dbl ?? dblLine(), scroll: extra.scroll ?? scrollLine(), ...extra });
 
  const panL = leftHeld && (drag === 'pan' || drag == null) ? 'Panning' : 'Pan';
  const panM = midHeld ? 'Panning' : 'Pan';
@@ -5263,6 +5264,21 @@ export function bindLegend(c = {}) {
  if (alt) return 'Nudge 0.01 px';
  const g = gridStepFor(c.snapMode || 'on', shift, false);
  return g ? tf('Snap {n} px', { n: g }) : 'Nudge 0.1 px';
+ }
+
+ function scrollLine() {
+ if (playing || c.ghostSweep || paint) return 'Zoom';
+ const sel = c.scrollSel;
+ if (!sel) return 'Zoom';
+ if (sel === 'rod') {
+ if (alt) return 'Vary weight ±100';
+ if (shift) return 'Vary weight ±10';
+ return 'Vary weight';
+ }
+ if (sel === 'wheel') return 'Vary wheel size';
+ if (sel === 'text') return 'Vary label size';
+ if (sel === 'shape') return 'Resize';
+ return 'Zoom';
  }
 
  function dblLine() {

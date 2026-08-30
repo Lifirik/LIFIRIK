@@ -536,6 +536,8 @@ That is the whole door. Everything in this part lives behind it. Nothing in the 
   { key: 'tour.adv.mode.more', group: 'Advanced · 1 The bar', label: 'The door — more', rich: true, def:
 `[[Shift+A]] cycles the Advanced bar: handle only, then tools, then tools and counts. Double-tap any bar's grip to fold it. ⤫ in that menu hides every bar to one spot, which is how you get the canvas to yourself.
 
+The ⌨ in that menu is the **key/mouse chip** — live Left / Middle / Right, scroll, and arrows. Scroll over a selected stick varies its weight; over a wheel, its size.
+
 The same ⚙ used to live on the Settings page. It is on the toolbar now because a mode switch two screens away is a mode nobody finds.` },
 
   { key: 'tour.adv.bar.title', group: 'Advanced · 1 The bar', label: 'The bar — title', def: 'Snap, Free World, Ghost, speed.' },
