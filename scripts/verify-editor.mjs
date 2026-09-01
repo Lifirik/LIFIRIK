@@ -37,12 +37,12 @@
 // in 0.6 s. See `scripts/gatekit.mjs`; `--times` re-measures the split whenever
 // this stops being true.
 
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
 import { gates } from './gatekit.mjs';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const u = (p) => pathToFileURL(path.join(root, p)).href;
 
 const { GameScreen, TOOL_FAMILIES } = await import(u('public/js/game.js'));
@@ -14690,5 +14690,103 @@ section('103', () => {
       S._stackLabels(twoSticks).join('|') === 'wood stick · 1|wood stick · 2');
   }
 });
+
+// ---------- gate 104: a moved / pasted machine keeps its pins ----------
+//
+// Imported pieces declare what they are bolted to (`att` names part ids) and
+// carry a source `shell` that Play rebuilds from while it still agrees with
+// the stored coords. Two editor paths used to drop that graph:
+//
+// - a 1 px move left the shell behind. Wheels stay "live" within 2.5 px of
+//   the shell (the import snap), so Play rebuilt them at the OLD hub, while
+//   the rods dropped their shells and stayed at the new ends. The machine
+//   came apart; the wheels jumped back.
+// - paste minted new ids and left `att` pointing at the old ones. Cut-paste
+//   named nothing, so no joints; copy-paste named the original, so the copy
+//   bolted onto the leftover machine instead of itself.
+{
+  const shellWheel = (id, x, y) => ({
+    t: 'wheel', kind: 'free', x, y, r: 15, id,
+    att: [null],
+    shell: { x, y, r: 15, rot: 0 },
+  });
+  const shellRod = (id, x1, y1, x2, y2, att) => ({
+    t: 'rod', kind: 'wood', x1, y1, x2, y2, id, att,
+    shell: { x: (x1 + x2) / 2, y: (y1 + y2) / 2, len: Math.hypot(x2 - x1, y2 - y1), rot: 0 },
+    snap1: { x: x1, y: y1 }, snap2: { x: x2, y: y2 },
+  });
+
+  {
+    const S = screen(flatWorld(), {
+      parts: [
+        shellWheel('w1', 0, -100),
+        shellRod('r1', 0, -100, 80, -100, ['w1', null]),
+      ],
+    });
+    S._movePiece({ kind: 'part', ref: S.design.parts[0] }, 1, 0);
+    S._movePiece({ kind: 'part', ref: S.design.parts[1] }, 1, 0);
+    const w = S.design.parts[0], r = S.design.parts[1];
+    gate('104. a 1 px nudge carries the FC shell with the stored coords',
+      near(w.x, 1) && near(w.shell.x, 1) && near(r.x1, 1) && near(r.shell.x, 41)
+      && near(r.snap1.x, 1) && near(r.snap2.x, 81),
+      `wheel ${w.x}/${w.shell.x} rod ${r.x1}/${r.shell.x} snap ${r.snap1.x}/${r.snap2.x}`);
+  }
+  {
+    const S = screen(flatWorld(), {
+      parts: [
+        shellWheel('w1', 0, -100),
+        shellRod('r1', 0, -100, 80, -100, ['w1', null]),
+      ],
+    });
+    const items = S.design.parts.map((p) => ({ s: { kind: 'part', ref: p }, base: S._geomOf({ kind: 'part', ref: p }) }));
+    for (const it of items) S._applyGeom(it.s, it.base, 1, 0);
+    const w = S.design.parts[0];
+    gate('104. …and a multi-selection drag does the same (Ctrl+Shift select, move a bit)',
+      near(w.x, 1) && near(w.shell.x, 1), `x ${w.x} shell ${w.shell.x}`);
+  }
+  {
+    const S = screen(flatWorld(), { parts: [] });
+    S._lastPointer = { x: 200, y: -100 };
+    S._pasteSel({
+      entries: [
+        { kind: 'part', data: shellWheel('w1', 0, -100) },
+        { kind: 'part', data: shellRod('r1', 0, -100, 80, -100, ['w1', null]) },
+      ],
+      anchor: { x: 0, y: -100 },
+    });
+    const w = S.design.parts.find((p) => p.t === 'wheel');
+    const r = S.design.parts.find((p) => p.t === 'rod');
+    gate('104. paste lands the shell at the new spot, not the old one',
+      w && r && near(w.x, 200) && near(w.shell.x, 200) && near(r.x1, 200) && near(r.shell.x, 240),
+      w && r ? `wheel ${w.x}/${w.shell?.x} rod ${r.x1}/${r.shell?.x}` : 'paste refused: ' + (S.toasts || []).join(' | '));
+    gate('104. …and rewrites `att` onto the new ids, so the copy is jointed to itself',
+      w && r && w.id !== 'w1' && r.id !== 'r1' && r.att?.[0] === w.id && r.att?.[1] === null,
+      w && r ? `wheel ${w.id} rod.att ${JSON.stringify(r.att)}` : 'no parts');
+  }
+  {
+    const S = screen(flatWorld(), { parts: [] });
+    S._lastPointer = { x: 0, y: -100 };
+    const rope = (id, x1, x2, chain) => ({ t: 'rod', kind: 'wood', x1, y1: -100, x2, y2: -100, id, chain });
+    S._pasteSel({
+      entries: [
+        { kind: 'part', data: rope('a', 0, 16, 'rope-1') },
+        { kind: 'part', data: rope('b', 16, 32, 'rope-1') },
+      ],
+      anchor: { x: 16, y: -100 },
+    });
+    S._lastPointer = { x: 80, y: -100 };
+    S._pasteSel({
+      entries: [
+        { kind: 'part', data: rope('a', 0, 16, 'rope-1') },
+        { kind: 'part', data: rope('b', 16, 32, 'rope-1') },
+      ],
+      anchor: { x: 16, y: -100 },
+    });
+    const chains = [...new Set(S.design.parts.map((p) => p.chain).filter(Boolean))];
+    gate('104. a pasted rope gets a new chain id, so two pastes are two ropes',
+      S.design.parts.length === 4 && chains.length === 2 && !chains.includes('rope-1'),
+      `n ${S.design.parts.length} chains ${chains.join(',')}`);
+  }
+}
 
 summary(`(ZONE_SLACK ${ZONE_SLACK}, ZONE_CLAMP_EPS ${ZONE_CLAMP_EPS}, TERRAIN_TOUCH_PAD ${TERRAIN_TOUCH_PAD}, ROD_THICK ${ROD_THICK})`);

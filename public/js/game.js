@@ -12150,7 +12150,7 @@ export class GameScreen {
  if (cl.dx !== nx - p0.x || cl.dy !== ny - p0.y) this._lastSnap = null;
 
  const applyAt = (rdx, rdy) => {
- hit.ref.x = p0.x + rdx; hit.ref.y = p0.y + rdy;
+ this._applyPartFrame(hit.ref, p0, rdx, rdy);
  for (const st of d.companions.stretches) {
  const ri = this.design.parts.indexOf(st.rod);
  const r0 = s.parts[ri];
@@ -12196,13 +12196,12 @@ export class GameScreen {
  const cl = this._clampDeltaToZone(bl, rdx0, rdy0, d.companions.goalRides.length > 0);
 
  const applyAt = (rdx, rdy) => {
- hit.ref.x1 = p0.x1 + rdx; hit.ref.y1 = p0.y1 + rdy;
- hit.ref.x2 = p0.x2 + rdx; hit.ref.y2 = p0.y2 + rdy;
+ this._applyPartFrame(hit.ref, p0, rdx, rdy);
  for (const wpart of d.companions.rides) {
  if (this.level.fixedParts.includes(wpart)) continue; // fixed parts don't ride machine drags
  const wi = this.design.parts.indexOf(wpart);
  const w0 = s.parts[wi];
- wpart.x = w0.x + rdx; wpart.y = w0.y + rdy;
+ this._applyPartFrame(wpart, w0, rdx, rdy);
  }
  // bolted goal pieces ride the rod too — a cart must not detach
  for (const gi of d.companions.goalRides) {
@@ -12457,14 +12456,10 @@ export class GameScreen {
  const p0 = s.fixed[i];
  const fixedBase = (part) => s.fixed[this.level.fixedParts.indexOf(part)];
  const applyAt = (rdx, rdy) => {
- if (hit.ref.t === 'wheel') { hit.ref.x = p0.x + rdx; hit.ref.y = p0.y + rdy; }
- else {
- hit.ref.x1 = p0.x1 + rdx; hit.ref.y1 = p0.y1 + rdy;
- hit.ref.x2 = p0.x2 + rdx; hit.ref.y2 = p0.y2 + rdy;
- }
+ this._applyPartFrame(hit.ref, p0, rdx, rdy);
  for (const wpart of d.companions.rides) {
  const w0 = fixedBase(wpart);
- wpart.x = w0.x + rdx; wpart.y = w0.y + rdy;
+ this._applyPartFrame(wpart, w0, rdx, rdy);
  }
  // …and the bolted GOAL PIECE, which is the other half of the companion
  // set `_companionsOf` now hands this pool. Without this line the set
@@ -12554,12 +12549,53 @@ export class GameScreen {
 
  // ---------- multi-selection rigid move ----------
 
+ // An imported machine part carries two extra frames besides its stored
+ // x/y (or x1/y1/x2/y2):
+ //
+ // `shell` — the source centre/length/rotation `_planJoints` rebuilds from,
+ // as long as it still AGREES with the stored coords (sim.js `shellLive`).
+ // `snap1` / `snap2` — the recorded snapped ends that agreement is judged
+ // against.
+ //
+ // A translation that moves the stored coords and leaves those behind is
+ // the "PLAY moves them back" bug: a wheel shifted by 1 px is still within
+ // the 2.5 px import-snap window, so Play rebuilds it at the OLD shell,
+ // while the rods (0.01 px window) drop their shells and stay at the new
+ // ends. The machine comes apart at the pins. One helper, so every mover
+ // — drag, nudge, paste — keeps the three frames on the same delta.
+ _partFrameOf(p) {
+ if (!p) return null;
+ const shell = p.shell ? { ...p.shell } : undefined;
+ const snap1 = p.snap1 ? { ...p.snap1 } : undefined;
+ const snap2 = p.snap2 ? { ...p.snap2 } : undefined;
+ return p.t === 'wheel'
+ ? { x: p.x, y: p.y, shell, snap1, snap2 }
+ : { x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2, shell, snap1, snap2 };
+ }
+
+ _applyPartFrame(p, base, dx, dy) {
+ if (!p || !base) return;
+ if (p.t === 'wheel') { p.x = base.x + dx; p.y = base.y + dy; }
+ else {
+ p.x1 = base.x1 + dx; p.y1 = base.y1 + dy;
+ p.x2 = base.x2 + dx; p.y2 = base.y2 + dy;
+ }
+ if (p.shell && base.shell) {
+ p.shell.x = base.shell.x + dx;
+ p.shell.y = base.shell.y + dy;
+ }
+ if (p.snap1 && base.snap1) p.snap1 = { x: base.snap1.x + dx, y: base.snap1.y + dy };
+ if (p.snap2 && base.snap2) p.snap2 = { x: base.snap2.x + dx, y: base.snap2.y + dy };
+ }
+
+ _shiftPartFrame(p, dx, dy) {
+ if (!p || (!dx && !dy)) return;
+ this._applyPartFrame(p, this._partFrameOf(p), dx, dy);
+ }
+
  _geomOf(s) {
  if (s.kind === 'part' || s.kind === 'fixed') {
- const p = s.ref;
- return p.t === 'wheel'
- ? { x: p.x, y: p.y }
- : { x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2 };
+ return this._partFrameOf(s.ref);
  }
  // `angle` rides along on every snapshot below purely so a TURN can restore
  // it (and restore its absence — see _geomAngle); a move never reads it.
@@ -12643,12 +12679,9 @@ export class GameScreen {
  // selection holding machine parts: a pin IS a shared coordinate (§5.4),
  // so turning half a machine would silently unbolt it from the half that
  // stayed put. Moving it keeps every offset, and so keeps every joint.
- const p = s.ref;
- if (p.t === 'wheel') { p.x = base.x + dx; p.y = base.y + dy; }
- else {
- p.x1 = base.x1 + dx; p.y1 = base.y1 + dy;
- p.x2 = base.x2 + dx; p.y2 = base.y2 + dy;
- }
+ // `_applyPartFrame` carries the FC shell / snap ends with the same
+ // delta — see `_partFrameOf`.
+ this._applyPartFrame(s.ref, base, dx, dy);
  } else if (s.kind === 'goal') {
  // **No `_goalLocked` check here.** It used to sit at the top of this
  // branch, so that locked pieces "sit out a multi-selection move rather
@@ -12791,7 +12824,7 @@ export class GameScreen {
  if (!this._movesWith(s, wp)) continue;
  const wk = kindOf(wp);
  if (selKeys.has(wk + ':' + (wp.id || this._refIndex({ kind: wk, ref: wp })))) continue;
- rides.set(wp.id, { part: wp, base: { x: wp.x, y: wp.y } });
+ rides.set(wp.id, { part: wp, base: this._partFrameOf(wp) });
  }
  for (const gi of c.goalRides) {
  if (selKeys.has('goal:' + gi)) continue;
@@ -12927,7 +12960,7 @@ export class GameScreen {
  const cl = this._clampDeltaToZone(d.clampBounds, rawDx, rawDy, d.holdsGoal);
  const applyAt = (adx, ady) => {
  for (const it of d.items) this._applyGeom(it.s, it.base, adx, ady);
- for (const r of d.rides) { r.part.x = r.base.x + adx; r.part.y = r.base.y + ady; }
+ for (const r of d.rides) this._applyPartFrame(r.part, r.base, adx, ady);
  for (const g of d.goalRides) this._setGoalPos(g.gi, g.base.x + adx, g.base.y + ady);
  for (const st of d.stretches) {
  if (st.end === 1) { st.rod.x1 = st.base.x + adx; st.rod.y1 = st.base.y + ady; }
@@ -13034,7 +13067,7 @@ export class GameScreen {
  // revert the whole moved set together — should be rare now that the
  // drag itself already bisects live, but stays as a backstop
  for (const it of d.items) this._applyGeom(it.s, it.base, 0, 0);
- for (const r of d.rides) { r.part.x = r.base.x; r.part.y = r.base.y; }
+ for (const r of d.rides) this._applyPartFrame(r.part, r.base, 0, 0);
  for (const g of d.goalRides) this._setGoalPos(g.gi, g.base.x, g.base.y);
  for (const st of d.stretches) {
  if (st.end === 1) { st.rod.x1 = st.base.x; st.rod.y1 = st.base.y; }
@@ -17541,9 +17574,7 @@ export class GameScreen {
  _movePiece(s, dx, dy) {
  if (s.kind === 'goal' && this._goalLocked(s.idx)) return;
  if (s.kind === 'part') {
- const p = s.ref;
- if (p.t === 'wheel') { p.x += dx; p.y += dy; }
- else { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; }
+ this._shiftPartFrame(s.ref, dx, dy);
  } else if (s.kind === 'goal') {
  const pos = this.goalPositions[s.idx];
  this._setGoalPos(s.idx, pos.x + dx, pos.y + dy);
@@ -17559,9 +17590,7 @@ export class GameScreen {
  if (isPaint(s.ref)) this._translatePath(s.ref, dx, dy);
  }
  } else if (s.kind === 'fixed') {
- const p = s.ref;
- if (p.t === 'wheel') { p.x += dx; p.y += dy; }
- else { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; }
+ this._shiftPartFrame(s.ref, dx, dy);
  } else if (s.kind === 'zone') {
  s.ref.x += dx; s.ref.y += dy;
  this._translatePath(s.ref.path, dx, dy);
@@ -19755,6 +19784,46 @@ export class GameScreen {
  }
  }
 
+ // Paste mints new part ids, so an imported machine's `att` graph — which
+ // names those ids — has to be rewritten onto the copies, or Play builds
+ // the pasted pieces as free bodies: cut-paste lost every pin, copy-paste
+ // bolted the copy onto the ORIGINAL. Rope `chain` ids get the same
+ // treatment so a duplicate is its own rope rather than one rope in two
+ // places. `srcSeq` is shifted past anything already in the level so the
+ // FC walk order of the copy stays contiguous.
+ _rebindPastedMachine(copies) {
+ if (!copies.length) return;
+ const idMap = new Map();
+ for (const p of copies) {
+ const old = p.id;
+ const neu = uid();
+ if (old != null) idMap.set(old, neu);
+ p.id = neu;
+ }
+ const chainMap = new Map();
+ for (const p of copies) {
+ if (!p.chain) continue;
+ if (!chainMap.has(p.chain)) chainMap.set(p.chain, uid());
+ p.chain = chainMap.get(p.chain);
+ }
+ for (const p of copies) {
+ if (!Array.isArray(p.att)) continue;
+ p.att = p.att.map((v) => {
+ if (v == null || v === true) return v;
+ return idMap.has(v) ? idMap.get(v) : null;
+ });
+ }
+ const seqs = copies.map((p) => p.srcSeq).filter((n) => n != null);
+ if (seqs.length) {
+ const used = [...this.design.parts, ...this.level.fixedParts]
+ .map((p) => p.srcSeq).filter((n) => n != null);
+ const bump = (used.length ? Math.max(...used) : 0) + 1 - Math.min(...seqs);
+ if (bump > 0) {
+ for (const p of copies) if (p.srcSeq != null) p.srcSeq += bump;
+ }
+ }
+ }
+
  _pasteSel(cbOverride, grid = 0) {
  if (this.playing) return;
  const cb = cbOverride || this._clipboardData();
@@ -19773,9 +19842,7 @@ export class GameScreen {
  for (const e of cb.entries) {
  if (e.kind !== 'part') continue;
  const p = deepCopy(e.data);
- p.id = uid();
- if (p.t === 'wheel') { p.x += dx; p.y += dy; }
- else { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; }
+ this._shiftPartFrame(p, dx, dy);
  partCopies.push(p);
  }
  // Build pads on the clipboard land with the same delta as the machine, so
@@ -19802,14 +19869,13 @@ export class GameScreen {
  for (const e of cb.entries) {
  if (e.kind !== 'fixed') continue;
  const p = deepCopy(e.data);
- p.id = uid();
- if (p.t === 'wheel') { p.x += dx; p.y += dy; }
- else { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; }
+ this._shiftPartFrame(p, dx, dy);
  fixedCopies.set(e, p);
  const err = p.t === 'wheel' ? this._wheelInvalid(p, null, false) : this._rodInvalid(p, null, false);
  if (err) { this._toast('Paste doesn\'t fit: ' + err); return; }
  }
  }
+ this._rebindPastedMachine([...partCopies, ...fixedCopies.values()]);
  if (this.tab === 'level') {
  for (const e of cb.entries) {
  const isGoal = e.kind === 'goal';
@@ -20039,7 +20105,7 @@ export class GameScreen {
  // `goalRides` is empty for a fixed rod by construction.
  if ((s.kind === 'part' || s.kind === 'fixed') && s.ref.t === 'rod') {
  this._movePiece(s, dx, dy);
- for (const wpart of companions.rides) { wpart.x += dx; wpart.y += dy; }
+ for (const wpart of companions.rides) this._shiftPartFrame(wpart, dx, dy);
  for (const gi of companions.goalRides) {
  const p = this.goalPositions[gi];
  this._setGoalPos(gi, p.x + dx, p.y + dy);

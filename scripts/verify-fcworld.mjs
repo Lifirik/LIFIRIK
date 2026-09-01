@@ -592,4 +592,54 @@ ${zones ? `<start><position><x>-100</x><y>0</y></position><width>200</width><hei
  }
 });
 
+// ---------- a translated shell is still the machine (2026-09-01) ----------
+//
+// "The cut/paste machines are not stuck together at their pins." / "Ctrl-Shift
+// select everything and move it a little bit. Everything breaks. When run the
+// pieces jump back."
+//
+// Play rebuilds a shelled wheel from `shell` while the hub is within 2.5 px
+// (import snap). A 1 px editor move that left the shell behind therefore
+// rebuilt the wheels at the OLD hub and the rods at the NEW ends. This fixture
+// is the machine AFTER a correct 1 px translation: stored coords, shell and
+// snap ends all shifted together. Play must start at the new spot, with the
+// declared pin still holding.
+section('moved-shell', () => {
+  const world = () => ({
+    terrain: [{ type: 'box', x: 0, y: 30, w: 2400, h: 60 }],
+    props: [], buildZones: [{ x: 0, y: -150, w: 2000, h: 300 }],
+    goalZones: [{ x: 900, y: -40, w: 120, h: 80 }],
+    goalObjs: [{ shape: 'ball', x: -900, y: -20, r: 15 }],
+    fixedParts: [], texts: [], pins: [], groups: {},
+  });
+  const machine = (dx) => {
+    const w = {
+      t: 'wheel', kind: 'free', x: dx, y: -20, r: 20, id: 'w1',
+      att: [null], shell: { x: dx, y: -20, r: 20, rot: 0 },
+    };
+    const r = {
+      t: 'rod', kind: 'wood', x1: dx, y1: -20, x2: dx + 80, y2: -20, id: 'r1',
+      att: ['w1', null],
+      shell: { x: dx + 40, y: -20, len: 80, rot: 0 },
+      snap1: { x: dx, y: -20 }, snap2: { x: dx + 80, y: -20 },
+    };
+    return [w, r];
+  };
+  const pose = (dx) => {
+    const sim = new Simulation(world(), { parts: machine(dx) }, { headless: true, physics: 'fc' });
+    const x = sim.wheels[0] ? sim._pose(sim.wheels[0].body).x : NaN;
+    const joints = sim.jointRecs.length;
+    sim.destroy();
+    return { x, joints };
+  };
+  const at0 = pose(0);
+  const at1 = pose(1);
+  gate('moved-shell. a 1 px translation of a shelled machine Plays at the new hub, not the old one',
+    Math.abs(at0.x) < 0.05 && Math.abs(at1.x - 1) < 0.05,
+    `unmoved ${at0.x}, moved ${at1.x}`);
+  gate('moved-shell. …and the declared pin still holds',
+    at0.joints >= 1 && at1.joints === at0.joints,
+    `joints at 0: ${at0.joints}, at 1 px: ${at1.joints}`);
+});
+
 summary();
