@@ -19727,6 +19727,34 @@ export class GameScreen {
 
  // `grid` is 0 for every route that isn't an armed paste — Duplicate from the
  // context menu pastes where the cursor is, as it always has.
+ // Build zones travelling with this paste, already shifted to where they
+ // will land. `_boxInBuildZone` / `_segInBuildZone` read `this.level.buildZones`
+ // and nothing else, so a paste that includes its own pads has to put them
+ // in that list for the check — then take them out again if the paste is
+ // refused, so a failed drop never mutates the level.
+ _pastedBuildZones(cb, dx, dy) {
+ return (cb.entries || [])
+ .filter((e) => e.kind === 'zone' && e.zoneType === 'build' && e.data)
+ .map((e) => {
+ const z = deepCopy(e.data);
+ z.x += dx; z.y += dy;
+ this._translatePath(z.path, dx, dy);
+ return z;
+ });
+ }
+
+ _withExtraBuildZones(extra, fn) {
+ if (!extra.length) return fn();
+ const n = extra.length;
+ this.level.buildZones.push(...extra);
+ this._bcSig = null;
+ try { return fn(); }
+ finally {
+ this.level.buildZones.length -= n;
+ this._bcSig = null;
+ }
+ }
+
  _pasteSel(cbOverride, grid = 0) {
  if (this.playing) return;
  const cb = cbOverride || this._clipboardData();
@@ -19750,8 +19778,14 @@ export class GameScreen {
  else { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; }
  partCopies.push(p);
  }
+ // Build pads on the clipboard land with the same delta as the machine, so
+ // the zone check has to see THEM, not only the pads already in the level.
+ // Otherwise duplicating a room (Ctrl+A, paste beside it) is refused for
+ // sitting outside the ORIGINAL box — the one the copy just left.
+ const extraBuild = this.tab === 'level' ? this._pastedBuildZones(cb, dx, dy) : [];
  for (const p of partCopies) {
- const err = p.t === 'wheel' ? this._wheelInvalid(p, null) : this._rodInvalid(p, null);
+ const err = this._withExtraBuildZones(extraBuild, () =>
+ p.t === 'wheel' ? this._wheelInvalid(p, null) : this._rodInvalid(p, null));
  if (err) { this._toast('Paste doesn\'t fit: ' + err); return; }
  }
  // Fixed parts were the one entry kind with no positional check at all —

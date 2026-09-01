@@ -1066,6 +1066,25 @@ const embedded = (surfaceY) => surfaceY;   // terrain top is y = 0 in flatWorld(
     gate('5. pasting a machine part outside the build zone is refused',
       P.design.parts.length === 0 && P.toasts.some(t => /build zone/.test(t)));
   }
+  // The pad on the clipboard lands with the same delta, so the check has to
+  // see it. Otherwise duplicating a room is refused for leaving the box it
+  // just copied.
+  {
+    const P = screen(world, { tab: 'level' });
+    P._lastPointer = { x: 1200, y: -100 };
+    const nZones = P.level.buildZones.length;
+    P._pasteSel({
+      entries: [
+        { kind: 'part', data: { t: 'wheel', kind: 'free', x: 0, y: 0, r: 15, id: 'c' } },
+        { kind: 'zone', zoneType: 'build', data: { x: 0, y: 0, w: 80, h: 80 } },
+      ],
+      anchor: { x: 0, y: 0 },
+    });
+    gate('5. a machine that brings its own build pad is not refused for leaving the old one',
+      P.design.parts.length === 1 && P.level.buildZones.length === nZones + 1
+      && !P.toasts.some((t) => /build zone/.test(t)),
+      `parts ${P.design.parts.length} zones ${P.level.buildZones.length} ${(P.toasts || []).join(' | ')}`);
+  }
   // Fixed parts were the one paste entry with no positional check at all, so
   // Ctrl+V or Duplicate buried a level-authored wheel in the floor while
   // placing one there was refused.
