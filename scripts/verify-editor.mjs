@@ -6540,6 +6540,57 @@ const MULTI_KNOB_GAP = 22;      // game.js's own constant, restated (see the hea
       groups.length === 1 && !S.multiSel.some(s => s.kind === 'terrain'),
       S.multiSel.map(s => s.kind + (s.gid || '')).join(','));
   }
+  // Copy/cut carry build and goal areas the selection actually occupies —
+  // a quarter of the zone under the copied pieces — so duplicating a room
+  // does not leave its pads behind. A crate sitting in a huge build area
+  // does not clone the whole area.
+  {
+    const S = screen(flatWorld({
+      props: [{ shape: 'box', x: -200, y: -30, w: 40, h: 40 }],
+    }), { tab: 'level' });
+    S._select({ kind: 'prop', ref: S.level.props[0] });
+    S._copySel();
+    gate('30. a small piece does not pull the whole build area onto the clipboard',
+      S._clipboard && !S._clipboard.entries.some((e) => e.kind === 'zone'),
+      (S._clipboard?.entries || []).map((e) => e.kind).join(','));
+  }
+  {
+    const S = screen(flatWorld({
+      props: [{ shape: 'box', x: 400, y: -40, w: 110, h: 70 }],
+    }), { tab: 'level' });
+    S._select({ kind: 'prop', ref: S.level.props[0] });
+    S._copySel();
+    const zones = (S._clipboard?.entries || []).filter((e) => e.kind === 'zone');
+    gate('30. …but a piece that fills a goal pad takes that pad with it',
+      zones.some((e) => e.zoneType === 'goal') && !zones.some((e) => e.zoneType === 'build'),
+      zones.map((e) => e.zoneType).join(',') || 'none');
+    S._lastPointer = { x: 0, y: -250 };
+    const nGoal = S.level.goalZones.length;
+    S._pasteSel();
+    gate('30. …and paste lands the extra goal area',
+      S.level.goalZones.length === nGoal + 1,
+      `${S.level.goalZones.length} goal zones`);
+  }
+  {
+    const S = screen(flatWorld(), { tab: 'level' });
+    S._keyDown(kev('a', { ctrl: true }));
+    S._copySel();
+    const zones = (S._clipboard?.entries || []).filter((e) => e.kind === 'zone');
+    gate('30. Ctrl+A copy carries both the build and goal areas',
+      zones.filter((e) => e.zoneType === 'build').length === 1
+      && zones.filter((e) => e.zoneType === 'goal').length === 1,
+      zones.map((e) => e.zoneType).join(','));
+  }
+  {
+    const S = screen(flatWorld(), { tab: 'level' });
+    S._select({ kind: 'zone', zone: 'build', idx: 0, ref: S.level.buildZones[0] });
+    S._copySel();
+    gate('30. copying a selected zone alone still copies it',
+      S._clipboard?.entries?.length === 1 && S._clipboard.entries[0].kind === 'zone'
+      && S._clipboard.entries[0].zoneType === 'build',
+      (S._clipboard?.entries || []).map((e) => e.kind).join(',') || 'empty');
+  }
+
   // Ctrl+S opens the save dialog and swallows the key
   {
     const S = screen(flatWorld(), { tab: 'level' });

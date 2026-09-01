@@ -7199,6 +7199,13 @@ export class GameScreen {
  ctx.globalAlpha = 0.4;
  ctx.fill(path);
  ctx.globalAlpha = 0.55;
+ } else if (e.kind === 'zone') {
+ const z = e.data;
+ ctx.fillStyle = e.zoneType === 'goal' ? 'rgba(46, 200, 120, 0.28)' : 'rgba(101, 88, 230, 0.28)';
+ ctx.fillRect(z.x - z.w / 2 + dx, z.y - z.h / 2 + dy, z.w, z.h);
+ } else if (e.kind === 'text') {
+ const t = e.data;
+ drawTextPiece(ctx, { ...t, x: t.x + dx, y: t.y + dy }, { alpha: 0.55 });
  }
  }
  ctx.restore();
@@ -19355,20 +19362,21 @@ export class GameScreen {
  // something was actually removed — a refused delete (the last goal piece)
  // must not clobber what you copied earlier.
  _cutAtCursor() {
- const multi = this.multiSel.length >= 2;
+ let source = this._copySource();
+ if (!source.length) {
  const at = this._lastPointer ? this._cursorTarget(this._lastPointer) : null;
- const source = multi ? this.multiSel : (at ? [at] : []);
- const entries = source.map(x => this._cloneEntryFor(x)).filter(Boolean);
- if (!entries.length) return;
- let removed;
- if (multi) { this._deleteSelection(); removed = true; }
- else removed = !!this._deleteHit(source[0]);
- if (!removed) return;
- let sx = 0, sy = 0;
- for (const e of entries) { const c = this._entryCenter(e); sx += c.x; sy += c.y; }
- this._clipboard = { entries, anchor: { x: sx / entries.length, y: sy / entries.length } };
+ source = at ? [at] : [];
+ }
+ const pack = this._clipboardFrom(source);
+ if (!pack) return;
+ // Clipboard first: a last remaining zone or goal piece cannot be removed,
+ // but it still belongs on the paste so the areas travel with the cut.
+ this._clipboard = pack;
  store.set('clipboard', this._clipboard);
- this._toast(tf(entries.length > 1 ? 'Cut {n} pieces — Ctrl+V pastes.' : 'Cut 1 piece — Ctrl+V pastes.', { n: entries.length }));
+ const multi = this.multiSel.length >= 2;
+ if (multi) this._deleteSelection();
+ else this._deleteHit(source[0]);
+ this._toast(tf(pack.entries.length > 1 ? 'Cut {n} pieces — Ctrl+V pastes.' : 'Cut 1 piece — Ctrl+V pastes.', { n: pack.entries.length }));
  }
 
  // What the cursor gestures — Ctrl+Right-click's delete and Ctrl+X's cut —
@@ -19583,30 +19591,100 @@ export class GameScreen {
  return { x: e.data.x, y: e.data.y };
  }
 
- _copySel() {
- const list = this._selList();
- const source = list.length ? list : (this.sel ? [this.sel] : []);
- const entries = source.flatMap(s => this._cloneEntriesFor(s));
- if (!entries.length) return;
+ // Copy/cut's selection, including a lone selected zone. `_selList` drops
+ // a single zone (it is the level's frame for most tools); the clipboard
+ // still has to carry it.
+ _copySource() {
+ if (this.multiSel.length) return this.multiSel;
+ if (this.sel && this.sel.kind !== 'endpoint') return [this.sel];
+ return [];
+ }
+
+ _entryBounds(e) {
+ const d = e.data;
+ if ((e.kind === 'part' || e.kind === 'fixed') && d) {
+ if (d.t === 'wheel') {
+ const r = d.r || 0;
+ return { minX: d.x - r, maxX: d.x + r, minY: d.y - r, maxY: d.y + r };
+ }
+ return {
+ minX: Math.min(d.x1, d.x2), maxX: Math.max(d.x1, d.x2),
+ minY: Math.min(d.y1, d.y2), maxY: Math.max(d.y1, d.y2),
+ };
+ }
+ if (e.kind === 'goal' && e.pos) {
+ const r = Math.max(d?.r || 0, (d?.w || 0) / 2, (d?.h || 0) / 2);
+ return { minX: e.pos.x - r, maxX: e.pos.x + r, minY: e.pos.y - r, maxY: e.pos.y + r };
+ }
+ if (!d || d.x == null) return null;
+ if (isPaint(d)) {
+ const pts = this._paintPts(d);
+ if (pts?.length) {
+ let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+ for (const p of pts) {
+ minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+ minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+ }
+ return { minX, maxX, minY, maxY };
+ }
+ }
+ const r = d.r || 0, hw = (d.w || 0) / 2, hh = (d.h || 0) / 2;
+ return { minX: d.x - hw - r, maxX: d.x + hw + r, minY: d.y - hh - r, maxY: d.y + hh + r };
+ }
+
+ // A zone the copied set actually occupies — a quarter of its area under the
+ // selection — travels with the clipboard. A crate sitting in a huge build
+ // area does not pull the whole area along; Ctrl+A (or a marquee that fills
+ // the pad) does. Explicitly selected zones always go, even if tiny.
+ _appendCoveredZones(entries) {
+ if (this.tab !== 'level') return entries;
+ const have = new Set(entries.filter((e) => e.kind === 'zone').map((e) => e.zoneType + ':' + e.data.x + ',' + e.data.y));
+ const bbs = entries.filter((e) => e.kind !== 'zone').map((e) => this._entryBounds(e)).filter(Boolean);
+ if (!bbs.length) return entries;
+ const u = bbs.reduce((a, b) => ({
+ minX: Math.min(a.minX, b.minX), maxX: Math.max(a.maxX, b.maxX),
+ minY: Math.min(a.minY, b.minY), maxY: Math.max(a.maxY, b.maxY),
+ }));
+ const extra = [];
+ for (const [zoneType, arr] of [['build', this.level.buildZones], ['goal', this.level.goalZones]]) {
+ for (const z of arr) {
+ const key = zoneType + ':' + z.x + ',' + z.y;
+ if (have.has(key)) continue;
+ const zb = { minX: z.x - z.w / 2, maxX: z.x + z.w / 2, minY: z.y - z.h / 2, maxY: z.y + z.h / 2 };
+ const ox = Math.max(0, Math.min(u.maxX, zb.maxX) - Math.max(u.minX, zb.minX));
+ const oy = Math.max(0, Math.min(u.maxY, zb.maxY) - Math.max(u.minY, zb.minY));
+ if (ox * oy <= 0.25 * z.w * z.h) continue;
+ extra.push({ kind: 'zone', zoneType, data: deepCopy(z) });
+ have.add(key);
+ }
+ }
+ return extra.length ? entries.concat(extra) : entries;
+ }
+
+ _clipboardFrom(source) {
+ const entries = this._appendCoveredZones(source.flatMap((s) => this._cloneEntriesFor(s)));
+ if (!entries.length) return null;
  let sx = 0, sy = 0;
  for (const e of entries) { const c = this._entryCenter(e); sx += c.x; sy += c.y; }
- // **The group RECORDS travel with the pieces.** A piece's `groupId` alone
- // is a dangling reference — the record is where the group's shared motion
- // path and its accumulated turn live (§9.3), so a copy without it would
- // paste pieces that claim a group nobody can find. Keyed by the OLD id;
- // the paste mints new ones and remaps.
  const groups = {};
  for (const e of entries) {
  const gid = e.data?.groupId;
  if (gid && this.level.groups?.[gid]) groups[gid] = deepCopy(this.level.groups[gid]);
  }
- this._clipboard = { entries, groups, anchor: { x: sx / entries.length, y: sy / entries.length } };
+ return { entries, groups, anchor: { x: sx / entries.length, y: sy / entries.length } };
+ }
+
+ _copySel() {
+ const source = this._copySource();
+ const pack = this._clipboardFrom(source);
+ if (!pack) return;
+ this._clipboard = pack;
  // Mirrored to storage so the clipboard survives leaving the level: every
  // entry is already a plain deepCopy, so it round-trips through JSON as-is.
  // This is what makes copy in one level and paste in another work — and it
  // outlives a reload, which the in-memory copy never did.
  store.set('clipboard', this._clipboard);
- this._toast(tf(entries.length > 1 ? 'Copied {n} pieces.' : 'Copied 1 piece.', { n: entries.length }));
+ this._toast(tf(pack.entries.length > 1 ? 'Copied {n} pieces.' : 'Copied 1 piece.', { n: pack.entries.length }));
  }
 
  // The in-memory clipboard wins (it's this session's), falling back to
