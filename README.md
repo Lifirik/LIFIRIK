@@ -5,6 +5,7 @@ Campaign, level maker, workshop, accounts, replays.
 
 How to play: [Instructions.md](Instructions.md), or **?** in the app
 (`/learn`, `/learn/maker`, `/learn/advanced`, `/learn/fc`, `/keys`).
+How to change it: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Run
 
