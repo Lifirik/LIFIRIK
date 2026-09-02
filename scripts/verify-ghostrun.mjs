@@ -22,12 +22,12 @@
 // 3. **The sweep measures what it says it measured.** Every cell, the origin
 // first, and no silent truncation — a search that reports a winner out of a
 // box it only half covered reads as "I looked everywhere".
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import { gates } from './gatekit.mjs';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const u = (p) => pathToFileURL(path.join(root, p)).href;
 
 const { GameScreen } = await import(u('public/js/game.js'));
@@ -1288,6 +1288,38 @@ section('9d', () => {
  gate('9d. cells that would push the cargo out of the build area are refused',
  refused > 0, `${refused} of ${T._ghostSweep.order.length} refused`);
  }
+ }
+ // **Outside the build area is hatched even under Free World** (2026-09-02,
+ // "The ghost matrix does not rule out outside the build area. That should
+ // be grey/slashed out."). Free World opens the BUILD gate so a hand can
+ // place out there; the matrix is a search for a machine that SCORES, and
+ // `_partEscapes` is the question Play asks when it withholds a score.
+ // `_boxInBuildZone` is `freeWorld || strict`, so the sweep used to colour
+ // those cells as ordinary physics.
+ {
+ const tight = flat({
+ buildZones: [{ x: 0, y: -40, w: 50, h: 80 }],
+ goalObjs: [{ shape: 'ball', x: 400, y: -40, r: 15 }],
+ });
+ const parts = [{ t: 'wheel', kind: 'free', id: 'w', x: 0, y: -40, r: 20 }];
+ const T = screen(tight, parts, { freeWorld: true });
+ T.ghost = { t: 0.2, stale: true, sim: null, shape: null, buf: null, stride: 0, time: 0, trace: null, won: false, winTime: null, lost: false, ms: null, failed: false };
+ ghostToEnd(T);
+ const pin = T._designPins().find((p) => p.isCenter);
+ T._startPinSweep(pin, 1);
+ sweepToEnd(T);
+ const cells = [...T._ghostSweep.cells];
+ const k = Math.floor(PIN_GRID_SIDE / 2);
+ let rightInf = 0, rightFin = 0;
+ for (let iy = -k; iy <= k; iy++) for (let ix = -k; ix <= k; ix++) {
+ const v = cells[(iy + k) * PIN_GRID_SIDE + (ix + k)];
+ if (ix < 6) continue; // ix=6,7: wheel r20 at x=6 has maxX=26, zone maxX=25
+ if (v === Infinity) rightInf++;
+ else if (Number.isFinite(v)) rightFin++;
+ }
+ gate('9d. Free World still hatches matrix cells that leave the build area',
+ rightInf > 0 && rightFin === 0,
+ `${rightInf} hatched, ${rightFin} scored of the right-hand column`);
  }
 });
 

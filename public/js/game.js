@@ -4711,10 +4711,14 @@ export class GameScreen {
  this.design.parts = parts;
  if (goals) this.goalPositions = goals;
  try {
- const zoned = this.tab === 'machine';
  for (const p of moved) {
+ const zoned = this._zonedFor(p);
  const bad = p.t === 'wheel' ? this._wheelInvalid(p, p, zoned) : this._rodInvalid(p, p, zoned);
  if (bad) return bad;
+ // The matrix hatches out-of-zone even when Free World opened the BUILD
+ // gate: that toggle is for the hand, not for the search. Same question
+ // Play asks when it withholds a score (`_partEscapes`).
+ if (this._partEscapes(p)) return 'outside the build area';
  }
  // **A moved CARGO is judged by the rules a cargo drag obeys**, not by the
  // machine's: it may not be pushed into terrain, into a prop or into
