@@ -58,6 +58,11 @@ import { goalPinOffsets, wheelPinOffsets } from './util.js';
 // finds.
 const TOL = 0.1 + 1e-9;
 const near = (ax, ay, bx, by) => Math.abs(ax - bx) <= TOL && Math.abs(ay - by) <= TOL;
+// A part or scenery piece is still AT its source block. Tighter than the
+// 2.5 px import-snap window on stored wheel hubs: that window is why a 1 px
+// editor nudge re-emitted the original XML and Play jumped back.
+const AT_SRC = 0.01;
+const atSource = (x, y, bx, by) => Math.abs(x - bx) < AT_SRC && Math.abs(y - by) < AT_SRC;
 // FC's four spokes / LIFIRIK's four cardinal rim pins, at exact r (no trig
 // on the cardinals — util.js ringOffsets says the same, so both parties hold
 // bit-identical floats). A rotated wheel's spokes ride its rotation.
@@ -91,11 +96,12 @@ function playerBlocksOf(xml) {
  return { head, tail, blocks };
 }
 
-// Does an imported part still agree with the source block it came from? The
-// same test _planJoints makes (shellLive), asked against the BLOCK's digits:
-// the block's endpoints (get_rod_endpoints, in JS trig — this only decides
-// whether the digits may be reused, the engine redoes the trig its own way)
-// against the stored ends, allowing the snap the importer recorded.
+// Does an imported part still sit on the source block, so the source's own
+// digits may be reused? That is NOT `shellLive`. `shellLive` asks whether the
+// stored coords still agree with the shell — and after a 1 px editor move
+// that carried the shell with them, they do. Re-emitting the ORIGINAL xml
+// then built Play at the old hub, which is the jump-back. The shell's centre
+// is the source position; if the editor translated it, this is a new block.
 function partMatchesBlock(p, blk, dx, dy) {
  const pos = posS(blk.inner);
  if (!pos) return false;
@@ -110,15 +116,33 @@ function partMatchesBlock(p, blk, dx, dy) {
  // nothing at all. A tag is the kind: solid/hollow rod, no-spin/cw/ccw wheel.
  if (p.t === 'wheel') {
  if (blk.type !== WHEEL_TAG[p.kind]) return false;
+ if (p.shell && !atSource(p.shell.x, p.shell.y, bx, by)) return false;
  return Math.abs(bx - p.x) <= 2.5 && Math.abs(by - p.y) <= 2.5;
  }
  if (blk.type !== ROD_TAG[p.kind]) return false;
+ if (p.shell && !atSource(p.shell.x, p.shell.y, bx, by)) return false;
  const rot = Number(numS(blk.inner, 'rotation') ?? 0), len = Number(numS(blk.inner, 'width') ?? 0);
  const cw = Math.cos(rot) * len / 2, sw = Math.sin(rot) * len / 2;
  const e1 = p.snap1 ?? { x: bx - cw, y: by - sw };
  const e2 = p.snap2 ?? { x: bx + cw, y: by + sw };
- return Math.abs(e1.x - p.x1) < 0.01 && Math.abs(e1.y - p.y1) < 0.01
- && Math.abs(e2.x - p.x2) < 0.01 && Math.abs(e2.y - p.y2) < 0.01;
+ return Math.abs(e1.x - p.x1) < AT_SRC && Math.abs(e1.y - p.y1) < AT_SRC
+ && Math.abs(e2.x - p.x2) < AT_SRC && Math.abs(e2.y - p.y2) < AT_SRC;
+}
+
+// The level's scenery blocks, in XML order — the same order `W.levels` maps
+// onto `terrain` / `props`. The C loader never rewrites these, so a Ctrl+A
+// move of the whole level that left them behind in the XML jumped the floor
+// (and everything on it) back on Play.
+function sceneryBlocksOf(xml) {
+ const open = xml.indexOf('<levelBlocks>'), close = xml.indexOf('</levelBlocks>');
+ if (open < 0 || close < 0) return [];
+ const body = xml.slice(open + '<levelBlocks>'.length, close);
+ const blocks = [];
+ for (const m of body.matchAll(BLOCK_RE)) {
+ const [, type,, , inner] = m;
+ blocks.push({ type, inner, pos: posS(inner) });
+ }
+ return blocks;
 }
 
 // The pieces of one XML block, re-serialised with a new id and joint list.
@@ -160,6 +184,25 @@ export function fcMachineXml(level, designParts, opts = {}) {
  for (const list of [level.props || [], level.terrain || []]) {
  for (const p of list) if ((Array.isArray(p.pins) && p.pins.length) || p.pin) return { refusal: 'a level piece carries a pin' };
  }
+ // The C loader builds scenery from the source XML, verbatim. A select-all
+ // nudge that moved the floor (and the machine with it) has to take the JS
+ // build — there is no dialect for "the whole level slid a pixel".
+ {
+ const scenery = sceneryBlocksOf(W.xml);
+ if (scenery.length !== (W.levels || []).length) return { refusal: 'level manifest disagrees with the scenery XML' };
+ let ti = 0, pi = 0;
+ for (let i = 0; i < scenery.length; i++) {
+ const pos = scenery[i].pos;
+ if (!pos) return { refusal: 'a scenery block has no position' };
+ const live = (W.levels[i] && W.levels[i].dynamic)
+ ? (level.props || [])[pi++]
+ : (level.terrain || [])[ti++];
+ if (!live) return { refusal: 'scenery manifest disagrees with the piles' };
+ if (!atSource(live.x, live.y, Number(pos.x) + dx, Number(pos.y) + dy)) {
+ return { refusal: 'the scenery moved' };
+ }
+ }
+ }
  // ---- every part an FC piece ----
  for (const p of machine) {
  if (p.t === 'rod') {
@@ -187,7 +230,11 @@ export function fcMachineXml(level, designParts, opts = {}) {
  const blk = g.shape === 'box' ? boxBlocks[bi++] : ballBlocks[wi++];
  if (!blk) return { refusal: 'a goal piece has no source block' };
  const pos = positions[i] || g;
- const moved = !!positions[i] && (positions[i].x !== g.x || positions[i].y !== g.y);
+ // Create-tab moves write BOTH g.x and goalPositions, so "staged !== spawn"
+ // never saw them. Compare to the source block, which is the XML Play
+ // would otherwise rebuild.
+ const srcPos = posS(blk.inner);
+ const moved = !srcPos || !atSource(pos.x, pos.y, Number(srcPos.x) + dx, Number(srcPos.y) + dy);
  let fc;
  if (g.shape === 'box') {
  const a = g.angle || 0, c = Math.cos(a), s = Math.sin(a), hw = g.w / 2, hh = g.h / 2;

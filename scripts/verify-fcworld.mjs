@@ -642,4 +642,84 @@ section('moved-shell', () => {
     `joints at 0: ${at0.joints}, at 1 px: ${at1.joints}`);
 });
 
+// ---------- a 1 px move of an IMPORTED machine must not jump back ----------
+//
+// The JS-path gate above never had `fcWorld`, so it could not catch this:
+// Play prefers the C loader, and the transpiler reused the source XML for any
+// part still within 2.5 px of its block (wheels) or whose snap ends still
+// agreed with the stored ends (rods). After the editor started carrying the
+// shell with a nudge, BOTH stayed true — original XML, pieces jump back.
+section('moved-import', () => {
+  const paste = [
+    'BuildArea (-400, -250), (800, 400)',
+    'GoalArea (280, -80), (120, 80)',
+    'StaticRect (0, 30), (1200, 60), 0',
+    'GoalRect#0 (300, -20), (40, 30), 0',
+    'Stick#1 (40, -20), (80, 8), 0',
+    'CWWheel#2 (0, -20), (40, 40), 0 [1]',
+  ].join('\n');
+  const imported = convertFcLevel(paste, { recentre: false, scale: 1 });
+  gate('moved-import. the fixture has a C-loader world',
+    !!(imported.level && imported.level.fcWorld && imported.level.fcWorld.xml),
+    imported.level?.fcWorld ? 'fcWorld' : 'no fcWorld');
+
+  const shiftPart = (p, dx, dy) => {
+    if (p.t === 'wheel') { p.x += dx; p.y += dy; }
+    else { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; }
+    if (p.shell) { p.shell.x += dx; p.shell.y += dy; }
+    if (p.snap1) { p.snap1.x += dx; p.snap1.y += dy; }
+    if (p.snap2) { p.snap2.x += dx; p.snap2.y += dy; }
+  };
+  const clone = () => JSON.parse(JSON.stringify({
+    level: imported.level,
+    design: { parts: imported.design || [] },
+  }));
+  const wheelX = (pack) => {
+    const sim = new Simulation(pack.level, pack.design, {
+      headless: true, physics: 'fc',
+      goalPositions: pack.level.goalObjs.map((g) => ({ x: g.x, y: g.y })),
+    });
+    const w = sim.wheels[0];
+    const x = w ? sim._pose(w.body).x : NaN;
+    const t = sim.terrain[0];
+    const tx = t ? sim._pose(t.body).x : NaN;
+    const joints = sim._fcWorld ? sim.E.fc_joined_count() : sim.jointRecs.length;
+    const path = sim._fcWorld ? 'C' : 'JS';
+    sim.destroy();
+    return { x, tx, joints, path };
+  };
+
+  const unmoved = clone();
+  const at0 = wheelX(unmoved);
+  const w0 = (unmoved.design.parts.find((p) => p.t === 'wheel')
+    || unmoved.level.fixedParts.find((p) => p.t === 'wheel'));
+  gate('moved-import. unmoved, Play sits on the authored hub',
+    w0 && Math.abs(at0.x - w0.x) < 0.05,
+    `pose ${at0.x} authored ${w0 && w0.x} path ${at0.path}`);
+
+  const nudged = clone();
+  for (const p of [...nudged.design.parts, ...nudged.level.fixedParts]) shiftPart(p, 1, 0);
+  const at1 = wheelX(nudged);
+  const w1 = (nudged.design.parts.find((p) => p.t === 'wheel')
+    || nudged.level.fixedParts.find((p) => p.t === 'wheel'));
+  gate('moved-import. a 1 px machine nudge Plays at the new hub, not the old one',
+    w1 && Math.abs(at1.x - w1.x) < 0.05 && Math.abs(at1.x - (w0.x + 1)) < 0.05,
+    `pose ${at1.x} want ${w1 && w1.x} was ${w0 && w0.x} path ${at1.path}`);
+  gate('moved-import. …and the pin still holds',
+    at1.joints >= 1,
+    `${at1.joints} joints on ${at1.path}`);
+
+  const whole = clone();
+  for (const p of [...whole.design.parts, ...whole.level.fixedParts]) shiftPart(p, 1, 0);
+  for (const t of whole.level.terrain) { t.x += 1; }
+  for (const g of whole.level.goalObjs) { g.x += 1; }
+  const atAll = wheelX(whole);
+  gate('moved-import. Ctrl+A + 1 px (machine and floor) does not jump the floor back',
+    Math.abs(atAll.tx - (at0.tx + 1)) < 0.05,
+    `terrain pose ${atAll.tx} was ${at0.tx} path ${atAll.path}`);
+  gate('moved-import. …or the machine',
+    Math.abs(atAll.x - (w0.x + 1)) < 0.05,
+    `wheel pose ${atAll.x} want ${w0.x + 1} path ${atAll.path}`);
+});
+
 summary();
